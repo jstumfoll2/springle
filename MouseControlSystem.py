@@ -30,10 +30,11 @@ class MouseControlSystem:
         """Calculate final velocity from mouse movement history."""
         if len(self.history) >= 2:
             # Use the last few positions to calculate velocity
-            start_pos, _ = self.history[0]
+            start_pos, _ = self.history[-2]
             end_pos, dt = self.history[-1]
-            dx = end_pos[0] - start_pos[0]
-            dy = end_pos[1] - start_pos[1]
+            
+            dx =  start_pos[0] - end_pos[0]
+            dy = -start_pos[1] + end_pos[1]
             
             if dt > 0:
                 self.velocity = (dx / dt, dy / dt)

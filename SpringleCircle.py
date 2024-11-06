@@ -158,52 +158,44 @@ class SpringleCircle:
             # Handle release
             velocity = self.mouse_control.end_drag()
             if self.groups:
-                latest_group = self.groups[-1]
+                # latest_group = self.groups[-1]
                 
                 # Calculate movement parameters from release velocity
                 speed = math.sqrt(velocity[0]**2 + velocity[1]**2)
-
-                # Calculate release angle from velocity
-                release_angle = math.atan2(velocity[1], velocity[0])
                 
                 # Set the rotation speed based on release velocity
-                speed = min(speed / 1000, 2.0)  # Cap the speed
-                latest_group.rotation_speed = speed
+                speed = min(speed / 1000, 5.0)  # Cap the speed
+                self.groups[-1].rotation_speed = speed
                 
                 shifted_mouse_pos = [0,0]
                 shifted_mouse_pos[0] = mouse_pos[0] - (self.WIDTH//2)
                 shifted_mouse_pos[1] =  (self.HEIGHT//2) - mouse_pos[1]
                 # Determine rotation direction based on velocity and quadrant
-                if shifted_mouse_pos[0] > 0 and shifted_mouse_pos[1] > 0: # first quadrant
+                if shifted_mouse_pos[0] >= 0 and shifted_mouse_pos[1] >= 0: # first quadrant
                     if velocity[0] > 0 and velocity[1] < 0:
-                        latest_group.direction = 1
+                        self.groups[-1].direction = -1
                     else: 
-                        latest_group.direction = -1
-                if shifted_mouse_pos[0] > 0 and shifted_mouse_pos[1] < 0: # second quadrant
+                        self.groups[-1].direction = 1
+                if shifted_mouse_pos[0] >= 0 and shifted_mouse_pos[1] < 0: # second quadrant
                     if velocity[0] < 0 and velocity[1] < 0:
-                        latest_group.direction = 1
+                        self.groups[-1].direction = -1
                     else: 
-                        latest_group.direction = -1
+                        self.groups[-1].direction = 1
                 if shifted_mouse_pos[0] < 0 and shifted_mouse_pos[1] < 0: # third quadrant
                     if velocity[0] < 0 and velocity[1] > 0:
-                        latest_group.direction = 1
+                        self.groups[-1].direction = -1
                     else: 
-                        latest_group.direction = -1
-                if shifted_mouse_pos[0] < 0 and shifted_mouse_pos[1] > 0: # fourth quadrant
+                        self.groups[-1].direction = 1
+                if shifted_mouse_pos[0] < 0 and shifted_mouse_pos[1] >= 0: # fourth quadrant
                     if velocity[0] > 0 and velocity[1] > 0:
-                        latest_group.direction = 1
+                        self.groups[-1].direction = -1
                     else: 
-                        latest_group.direction = -1
+                        self.groups[-1].direction = 1
                 
-                # Update each circle's angle to maintain their current position
-                # but align their movement with the release direction
-                base_radius = latest_group.circles[0]['radius']  # Use current radius
-                for i, circle in enumerate(latest_group.circles):
-                    current_angle = circle['angle']
-                    # Maintain relative spacing but align with release direction
-                    spacing_angle = (2 * math.pi * i) / len(latest_group.circles)
-                    circle['angle'] = release_angle + spacing_angle
-                    circle['radius'] = base_radius  # Maintain current radius
+                # reset time offset to keep variation to zero initially 
+                self.groups[-1].time_offset = 0
+                for i, circle in enumerate(self.groups[-1].circles):
+                    circle['time_offset'] = 0 
         
         if self.spawn_cooldown > 0:
             self.spawn_cooldown -= dt
