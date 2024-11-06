@@ -7,6 +7,10 @@ from SpringleCircle import SpringleCircle  # Update import to use the class
 # Initialize Pygame
 pygame.init()
 
+# Create font (add this after pygame.init() at the start of the program)
+if not hasattr(pygame, 'mouse_pos_font'):
+    pygame.mouse_pos_font = pygame.font.Font(None, 24)
+
 # Set up the display
 WIDTH = 1080
 HEIGHT = 1080
@@ -293,7 +297,7 @@ while running:
     screen.fill((0, 0, 0))
     
     # Update and draw circle system with mouse input
-    current_mouse_pos = pygame.mouse.get_pos() if mouse_button_pressed else None
+    current_mouse_pos = pygame.mouse.get_pos()
     circle_system.update(time_delta, MIN_CIRCLES, MAX_CIRCLES, BASE_EXPANSION_RATE, 
                         RATE_VARIATION, ROTATION_SPEED, BASE_SIZE, 
                         mouse_button_pressed, current_mouse_pos, FADE_DURATION,
@@ -302,6 +306,20 @@ while running:
     # Pass MAX_ALPHA to the draw method
     circle_system.draw(screen, MAX_ALPHA)
     
+    # Get current mouse position and adjust to center coordinates
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    centered_x = mouse_x - (WIDTH // 2)
+    centered_y = (HEIGHT // 2) - mouse_y  # Flip Y to make positive go up
+
+    # Render mouse position text
+    mouse_pos_text = f"Mouse: ({centered_x}, {centered_y})"
+    text_surface = pygame.mouse_pos_font.render(mouse_pos_text, True, (255, 255, 255))
+    text_rect = text_surface.get_rect()
+    text_rect.bottomright = (WIDTH - 10, HEIGHT - 10)
+
+    # Draw text
+    screen.blit(text_surface, text_rect)
+        
     # Draw UI
     manager.draw_ui(screen)
     

@@ -5,6 +5,7 @@ import random
 # Local imports
 from OrbitGroup import OrbitGroup
 from SpingleColors import SpingleColors
+from MouseControlSystem import MouseControlSystem
 
 class SpringleCircle:
     def __init__(self, min_circles, max_circles, base_expansion_rate, rate_variation, 
@@ -23,6 +24,7 @@ class SpringleCircle:
         self.add_mouse_group = False
         self.onegrouppermouseclick = True
         self.colors = SpingleColors()  # Create instance of SpingleColors
+        self.mouse_control = MouseControlSystem()
         
     def calculate_mouse_vector(self, current_pos):
         if not self.mouse_positions:
@@ -48,26 +50,34 @@ class SpringleCircle:
         if len(self.mouse_positions) > self.mouse_history_length:
             # self.mouse_positions.pop(0)
             self.add_mouse_group = True
-
+    
     def create_mouse_group(self, pos, min_circles, max_circles, base_expansion_rate, 
-                        rate_variation, rotation_speed, base_size):
-        # Calculate mouse movement vector
-        mouse_dx, mouse_dy, mouse_speed = self.calculate_mouse_vector(pos)
+                          rate_variation, rotation_speed, base_size):
+        """Creates a new group of circles based on mouse position and movement."""
+        import math
+                    
+        # Create the group with zero initial radius (we'll set positions manually)
+        group = OrbitGroup(min_circles, max_circles, base_expansion_rate,
+                          rate_variation, rotation_speed, base_size, 0)
+            
+        # Calculate relative position from center
+        rel_x = pos[0] - self.center_x
+        rel_y = pos[1] - self.center_y
+        click_radius = math.sqrt(rel_x**2 + rel_y**2)
+        click_angle = math.atan2(rel_y, rel_x)
         
-        # Base angle from mouse movement
-        base_angle = math.atan2(mouse_dy, mouse_dx) if (mouse_dx or mouse_dy) else 0
-        speed_factor = max(0.2, min(2.0, mouse_speed / 50))  # Scale mouse speed to reasonable range
+        # Position all circles in the group around the click position
+        for i, circle in enumerate(group.circles):
+            # Calculate angle for this circle around the click point
+            # circle_angle = base_angle + (2 * math.pi * i / len(group.circles))
+            
+            # Set the radius to the distance from center to click point
+            circle['radius'] = click_radius
+            
+            # Set the angle to maintain the click position but distribute circles
+            circle['angle'] = click_angle + (2 * math.pi * i / len(group.circles))
         
-        radius = math.sqrt(math.pow(pos[0], 2) + math.pow(pos[1], 2))/4
-        
-        # Create new group with mouse-influenced parameters
-        new_group = OrbitGroup(min_circles, max_circles, base_expansion_rate, 
-                            rate_variation, speed_factor, base_size, radius)
-        
-        # clear mouse history for next click  
-        self.mouse_positions.clear()
-        
-        return new_group
+        return group
        
     def is_circle_visible(self, x, y, radius, screen_diagonal):
         # Check if circle is still within a visible range
@@ -98,11 +108,12 @@ class SpringleCircle:
             if distance_from_center <= screen_diagonal / 1.2:
                 return True
         return False
-    
 
-    def update(self, dt, min_circles, max_circles, base_expansion_rate, rate_variation, 
-              rotation_speed, base_size, mouse_button_pressed, mouse_pos, fade_duration,
-              space_factor):
+    # Modified update method for SpringleCircle class
+    def update(self, dt, min_circles, max_circles, base_expansion_rate, rate_variation,
+                        rotation_speed, base_size, mouse_button_pressed, mouse_pos, fade_duration,
+                        space_factor):
+        """Updated update method incorporating new mouse control system."""
         screen_diagonal = math.sqrt(self.WIDTH**2 + self.HEIGHT**2)
         need_new_group = False
         
@@ -111,19 +122,88 @@ class SpringleCircle:
         
         # Handle mouse input
         if mouse_button_pressed and mouse_pos:
-            self.add_mouse_position(mouse_pos, dt)
-            if self.add_mouse_group and self.onegrouppermouseclick:
-                self.onegrouppermouseclick = False
-                new_group = self.create_mouse_group(mouse_pos, min_circles, max_circles,
-                                                  base_expansion_rate, rate_variation,
-                                                  rotation_speed, base_size)
-                self.groups.append(new_group)
+            if not self.mouse_control.is_dragging:
+                # Start new drag
+                self.mouse_control.start_drag(mouse_pos)
                 
-                self.add_mouse_group = False    
-                self.spawn_cooldown = 0.1  # Short cooldown for mouse spawning
+                # Create new group at click position
+                new_group = self.create_mouse_group(
+                    mouse_pos,
+                    min_circles,
+                    max_circles,
+                    base_expansion_rate,
+                    rate_variation,
+                    rotation_speed,
+                    base_size
+                )
+                self.groups.append(new_group)
+            else:
+                # Update existing drag
+                self.mouse_control.update_drag(mouse_pos, dt)
+                
+                # Update most recent group's position/movement
+                if self.groups:
+                    latest_group = self.groups[-1]
+                    rel_x = mouse_pos[0] - self.center_x
+                    rel_y = mouse_pos[1] - self.center_y
+                    click_radius = math.sqrt(rel_x**2 + rel_y**2)
+                    click_angle = math.atan2(rel_y, rel_x)
+                    
+                    # Update circles to follow mouse while maintaining their relative arrangement
+                    for i, circle in enumerate(latest_group.circles):
+                        circle['radius'] = click_radius
+                        circle['angle'] = click_angle + (2 * math.pi * i / len(latest_group.circles))
         
-        if mouse_button_pressed is False:
-            self.onegrouppermouseclick = True
+        elif self.mouse_control.is_dragging:
+            # Handle release
+            velocity = self.mouse_control.end_drag()
+            if self.groups:
+                latest_group = self.groups[-1]
+                
+                # Calculate movement parameters from release velocity
+                speed = math.sqrt(velocity[0]**2 + velocity[1]**2)
+
+                # Calculate release angle from velocity
+                release_angle = math.atan2(velocity[1], velocity[0])
+                
+                # Set the rotation speed based on release velocity
+                speed = min(speed / 1000, 2.0)  # Cap the speed
+                latest_group.rotation_speed = speed
+                
+                shifted_mouse_pos = [0,0]
+                shifted_mouse_pos[0] = mouse_pos[0] - (self.WIDTH//2)
+                shifted_mouse_pos[1] =  (self.HEIGHT//2) - mouse_pos[1]
+                # Determine rotation direction based on velocity and quadrant
+                if shifted_mouse_pos[0] > 0 and shifted_mouse_pos[1] > 0: # first quadrant
+                    if velocity[0] > 0 and velocity[1] < 0:
+                        latest_group.direction = 1
+                    else: 
+                        latest_group.direction = -1
+                if shifted_mouse_pos[0] > 0 and shifted_mouse_pos[1] < 0: # second quadrant
+                    if velocity[0] < 0 and velocity[1] < 0:
+                        latest_group.direction = 1
+                    else: 
+                        latest_group.direction = -1
+                if shifted_mouse_pos[0] < 0 and shifted_mouse_pos[1] < 0: # third quadrant
+                    if velocity[0] < 0 and velocity[1] > 0:
+                        latest_group.direction = 1
+                    else: 
+                        latest_group.direction = -1
+                if shifted_mouse_pos[0] < 0 and shifted_mouse_pos[1] > 0: # fourth quadrant
+                    if velocity[0] > 0 and velocity[1] > 0:
+                        latest_group.direction = 1
+                    else: 
+                        latest_group.direction = -1
+                
+                # Update each circle's angle to maintain their current position
+                # but align their movement with the release direction
+                base_radius = latest_group.circles[0]['radius']  # Use current radius
+                for i, circle in enumerate(latest_group.circles):
+                    current_angle = circle['angle']
+                    # Maintain relative spacing but align with release direction
+                    spacing_angle = (2 * math.pi * i) / len(latest_group.circles)
+                    circle['angle'] = release_angle + spacing_angle
+                    circle['radius'] = base_radius  # Maintain current radius
         
         if self.spawn_cooldown > 0:
             self.spawn_cooldown -= dt
@@ -153,7 +233,7 @@ class SpringleCircle:
 
             group.base_expansion_rate = base_expansion_rate
             group.rate_variation = rate_variation
-            group.rotation_speed = rotation_speed * (random.uniform(0, 2.5)-1.25)
+            group.rotation_speed = rotation_speed * random.uniform(0, 2)
             group.base_size = base_size
             
             group.color_transition += dt * self.color_transition_speed
