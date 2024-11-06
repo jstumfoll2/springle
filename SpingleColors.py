@@ -138,3 +138,12 @@ class SpingleColors:
     
     def getPalette(self,index):
         return self.COLOR_PALETTES[index]
+    
+    def getColor(self,pattern_index, color_index, transition_factor):
+        current_palette = self.COLOR_PALETTES[pattern_index]
+        next_palette = self.COLOR_PALETTES[(pattern_index + 1) % self.numPatterns()]
+        current_color = current_palette[color_index]
+        next_color = next_palette[color_index]
+        
+        color = self.lerp_color(current_color, next_color, transition_factor)
+        return color
