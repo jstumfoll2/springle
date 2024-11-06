@@ -7,7 +7,8 @@ from OrbitGroup import OrbitGroup
 from SpingleColors import SpingleColors
 
 class SpringleCircle:
-    def __init__(self, min_circles, max_circles, base_expansion_rate, rate_variation, rotation_speed, base_size, WIDTH, HEIGHT):
+    def __init__(self, min_circles, max_circles, base_expansion_rate, rate_variation, 
+                 rotation_speed, base_size, WIDTH, HEIGHT):
         self.groups = [OrbitGroup(min_circles, max_circles, base_expansion_rate, rate_variation, rotation_speed, base_size, 0)]
         self.WIDTH = WIDTH
         self.HEIGHT = HEIGHT

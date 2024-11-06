@@ -17,10 +17,8 @@ pygame.display.set_caption("Springle")
 manager = pygame_gui.UIManager((WIDTH, HEIGHT))
 
 # Initial parameters
-MIN_CIRCLES = 3
-START_MIN_CIRCLES = 8
-MAX_CIRCLES = 15
-START_MAX_CIRCLES = 10
+MIN_CIRCLES = 6
+MAX_CIRCLES = 12
 BASE_EXPANSION_RATE = 40
 RATE_VARIATION = 3
 ROTATION_SPEED = 1.2
@@ -29,12 +27,24 @@ FADE_DURATION = 6.0
 MAX_ALPHA = 128  # New parameter for max trail alpha
 TRAIL_SPACING_FACTOR = 0.5
 
+# First, define original/default values at the start of your program, after the WIDTH/HEIGHT definitions
+DEFAULT_VALUES = {
+    'min_circles': MIN_CIRCLES,  # 8
+    'max_circles': MAX_CIRCLES,  # 10
+    'base_expansion_rate': BASE_EXPANSION_RATE,  # 40
+    'rate_variation': RATE_VARIATION,  # 3
+    'rotation_speed': ROTATION_SPEED,  # 1.2
+    'base_size': BASE_SIZE,  # 25
+    'fade_duration': FADE_DURATION,  # 6.0
+    'max_alpha': MAX_ALPHA,  # 128
+    'trail_spacing': TRAIL_SPACING_FACTOR  # 0.5
+}
 
 # Create UI elements
 min_circles_slider = pygame_gui.elements.UIHorizontalSlider(
     relative_rect=pygame.Rect((20, 20), (200, 20)),
-    start_value=START_MIN_CIRCLES,
-    value_range=(MIN_CIRCLES, MAX_CIRCLES),
+    start_value=MIN_CIRCLES,
+    value_range=(1, 20),
     manager=manager
 )
 pygame_gui.elements.UILabel(
@@ -45,8 +55,8 @@ pygame_gui.elements.UILabel(
 
 max_circles_slider = pygame_gui.elements.UIHorizontalSlider(
     relative_rect=pygame.Rect((20, 70), (200, 20)),
-    start_value=START_MAX_CIRCLES,
-    value_range=(MIN_CIRCLES, MAX_CIRCLES),
+    start_value=MAX_CIRCLES,
+    value_range=(1, 20),
     manager=manager
 )
 pygame_gui.elements.UILabel(
@@ -58,7 +68,7 @@ pygame_gui.elements.UILabel(
 expansion_rate_slider = pygame_gui.elements.UIHorizontalSlider(
     relative_rect=pygame.Rect((20, 120), (200, 20)),
     start_value=BASE_EXPANSION_RATE,
-    value_range=(1, 1000),
+    value_range=(1, 100),
     manager=manager
 )
 pygame_gui.elements.UILabel(
@@ -134,6 +144,7 @@ trail_spacing_slider = pygame_gui.elements.UIHorizontalSlider(
     relative_rect=pygame.Rect((20, 420), (200, 20)),
     start_value=TRAIL_SPACING_FACTOR,
     value_range=(0.0, 1.0),
+    click_increment=0.05,  # adjusts by 0.05 per arrow click
     manager=manager
 )
 pygame_gui.elements.UILabel(
@@ -161,6 +172,12 @@ clear_groups_button = pygame_gui.elements.UIButton(
     manager=manager
 )
 
+# Add reset button (after your other buttons)
+reset_button = pygame_gui.elements.UIButton(
+    relative_rect=pygame.Rect((20, 590), (200, 30)),
+    text='Reset All Settings',
+    manager=manager
+)
 
 # Create circle system
 circle_system = SpringleCircle(MIN_CIRCLES, MAX_CIRCLES, BASE_EXPANSION_RATE, 
@@ -233,13 +250,35 @@ while running:
                 new_group = OrbitGroup(MIN_CIRCLES, MAX_CIRCLES, BASE_EXPANSION_RATE,
                                    RATE_VARIATION, ROTATION_SPEED, BASE_SIZE, 0)
                 circle_system.groups = [new_group]
+                # In your main event loop, add this to the UI_BUTTON_PRESSED section:
+            elif event.ui_element == reset_button:
+                # Reset all sliders to their default values
+                min_circles_slider.set_current_value(DEFAULT_VALUES['min_circles'])
+                max_circles_slider.set_current_value(DEFAULT_VALUES['max_circles'])
+                expansion_rate_slider.set_current_value(DEFAULT_VALUES['base_expansion_rate'])
+                rate_variation_slider.set_current_value(DEFAULT_VALUES['rate_variation'])
+                rotation_speed_slider.set_current_value(DEFAULT_VALUES['rotation_speed'])
+                base_size_slider.set_current_value(DEFAULT_VALUES['base_size'])
+                fade_duration_slider.set_current_value(DEFAULT_VALUES['fade_duration'])
+                max_alpha_slider.set_current_value(DEFAULT_VALUES['max_alpha'])
+                trail_spacing_slider.set_current_value(DEFAULT_VALUES['trail_spacing'])
+                
+                # Update the variables to match
+                MIN_CIRCLES = DEFAULT_VALUES['min_circles']
+                MAX_CIRCLES = DEFAULT_VALUES['max_circles']
+                BASE_EXPANSION_RATE = DEFAULT_VALUES['base_expansion_rate']
+                RATE_VARIATION = DEFAULT_VALUES['rate_variation']
+                ROTATION_SPEED = DEFAULT_VALUES['rotation_speed']
+                BASE_SIZE = DEFAULT_VALUES['base_size']
+                FADE_DURATION = DEFAULT_VALUES['fade_duration']
+                MAX_ALPHA = DEFAULT_VALUES['max_alpha']
+                TRAIL_SPACING_FACTOR = DEFAULT_VALUES['trail_spacing']
         
         # Handle mouse events only if UI didn't handle them
         if not ui_event_occurred:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left mouse button
                     mouse_button_pressed = True
-                    mouse_pos = pygame.mouse.get_pos()
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 1:  # Left mouse button
                     mouse_button_pressed = False
@@ -257,7 +296,7 @@ while running:
     current_mouse_pos = pygame.mouse.get_pos() if mouse_button_pressed else None
     circle_system.update(time_delta, MIN_CIRCLES, MAX_CIRCLES, BASE_EXPANSION_RATE, 
                         RATE_VARIATION, ROTATION_SPEED, BASE_SIZE, 
-                        mouse_button_pressed, mouse_pos, FADE_DURATION,
+                        mouse_button_pressed, current_mouse_pos, FADE_DURATION,
                         TRAIL_SPACING_FACTOR)
     
     # Pass MAX_ALPHA to the draw method
