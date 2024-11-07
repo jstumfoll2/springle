@@ -78,7 +78,7 @@ class SpringleCircle:
         center = (size, size)
         
         # Optimize number of steps based on size
-        num_steps = min(15, max(5, int(size / 4)))
+        num_steps = 15 # min(15, max(5, int(size / 4)))
         
         # Draw base gradient circles
         for i in range(num_steps):
@@ -297,8 +297,8 @@ class SpringleCircle:
         
         # Draw all elements with gradient effect
         for element in drawable_elements:
-            # gradient_surface = self._get_cached_gradient(
-            gradient_surface = self.create_gradient_circle(
+            gradient_surface = self._get_cached_gradient(
+            # gradient_surface = self.create_gradient_circle(
                 element['size'], 
                 element['color'], 
                 element['alpha']
