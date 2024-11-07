@@ -1,16 +1,28 @@
 import pygame
 import pygame_gui
+from datetime import datetime
+import os
 
 from OrbitGroup import OrbitGroup
 from SpringleCircle import SpringleCircle  # Update import to use the class
 from FPSCounter import FPSCounter
 
+# Add screenshot function
+def take_screenshot(screen):
+    """Take a screenshot of the current screen."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"springle_{timestamp}.png"
+    filepath = os.path.join(".\\", filename)
+    pygame.image.save(screen, filepath)
+    print(f"Screenshot saved: {filepath}")
+    
 # Initialize Pygame
 pygame.init()
 
-# Create font (add this after pygame.init() at the start of the program)
+# Create font
 if not hasattr(pygame, 'mouse_pos_font'):
     pygame.mouse_pos_font = pygame.font.Font(None, 24)
+screenshot_font = pygame.font.Font(None, 20)
 
 # Set up the display
 WIDTH = 1080
@@ -305,6 +317,11 @@ while running:
                 FADE_DURATION = DEFAULT_VALUES['fade_duration']
                 MAX_ALPHA = DEFAULT_VALUES['max_alpha']
                 TRAIL_SPACING_FACTOR = DEFAULT_VALUES['trail_spacing']
+                
+        # To capture screenshots
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_s:  # Press 'S' to save screenshot
+                take_screenshot(screen)
         
         # Handle mouse events only if UI didn't handle them
         if not ui_event_occurred:
@@ -352,6 +369,13 @@ while running:
     # Update and draw FPS counter
     fps_counter.update(time_delta)
     fps_counter.draw(screen)
+    
+    # Draw the screenshot instruction text
+    screenshot_text = 'Press "s" to save screenshot'
+    text_surface = screenshot_font.render(screenshot_text, True, (255, 255, 255))
+    text_rect = text_surface.get_rect()
+    text_rect.bottomleft = (10, screen.get_height() - 10)
+    screen.blit(text_surface, text_rect)
         
     # Draw UI
     manager.draw_ui(screen)
@@ -360,3 +384,4 @@ while running:
     pygame.display.flip()
 
 pygame.quit()
+
