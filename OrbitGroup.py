@@ -62,13 +62,13 @@ class OrbitGroup:
     def validate_parameters(self, min_circles, max_circles, radius, base_size):
         """Validate input parameters."""
         if min_circles < 1:
-            raise ValueError("Minimum circles must be at least 1")
+            min_circles = 1
         if max_circles < min_circles:
-            raise ValueError("Maximum circles must be >= minimum circles")
+            max_circles = min_circles
         if radius < 0:
-            raise ValueError("Radius must be non-negative")
+            radius = 1
         if base_size <= 0:
-            raise ValueError("Base size must be positive")
+            base_size = 1
 
     def get_validated_circle_count(self, min_circles, max_circles):
         """Get validated number of circles with bounds checking."""

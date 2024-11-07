@@ -2,8 +2,10 @@
 
 Springle is an interactive particle animation system that creates mesmerizing visual effects through orbital motion and color transitions. Users can create and manipulate groups of particles that leave colorful trails as they move across the screen.
 
-![Springle Animation Demo]
-<img src="docs/images/springle_demo.png" width="800" alt="Springle Demo Screenshot">
+<img src="docs/images/springle_normal.png" width="800" alt="Springle Demo Screenshot">
+
+Options Menu:
+<img src="docs/images/springle_options.png" width="800" alt="Springle Demo Screenshot">
 
 ## Features
 

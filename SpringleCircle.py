@@ -1,11 +1,11 @@
 import pygame
 import math
-import random
 
 # Local imports
 from OrbitGroup import OrbitGroup
 from SpingleColors import SpingleColors
 from MouseControlSystem import MouseControlSystem
+from springle_params import SpringleParams
 
 MAX_GROUPS = 7
 class SpringleCircle:
@@ -13,6 +13,9 @@ class SpringleCircle:
                  radial_velocity, angular_velocity,
                  radial_acceleration, angular_acceleration,  
                  base_size, WIDTH, HEIGHT):
+        
+        # Initialize with default parameters
+        self.params = SpringleParams.from_defaults()
         
         self.groups = [OrbitGroup(min_circles, max_circles, 0, base_size,
                                   radial_velocity, angular_velocity,
@@ -23,7 +26,8 @@ class SpringleCircle:
         self.screen_diagonal = math.sqrt(WIDTH**2 + HEIGHT**2)
         
         self.color_transition_speed = 0.2
-        self.spawn_cooldown = 0  # Add cooldown for spawning new groups
+        self.spawn_cooldown_start = 4.0  # Starting value for cooldown timer
+        self.spawn_cooldown_current = self.spawn_cooldown_start  # Initialize with full cooldown to prevent immediate spawn
         self.fade_duration = 10.0  # Time in seconds for trails to fully fade
 
         self.colors = SpingleColors()  # Create instance of SpingleColors
@@ -130,52 +134,46 @@ class SpringleCircle:
         """Calculate circle size based on radius from center."""
         size_factor = math.log(radius + 1) / 5 if radius > 0 else 1
         return base_size * size_variation * size_factor
-    
-    def update(self, dt, min_circles, max_circles, 
-                 radial_velocity, angular_velocity,
-                 radial_acceleration, angular_acceleration, 
-                 base_size, mouse_button_pressed, mouse_pos, fade_duration,
-              space_factor):
+        
+    def update(self, dt: float, params: SpringleParams) -> None:
         """Update all groups and handle mouse interaction."""
-        # Update fade duration from slider
-        self.fade_duration = fade_duration
+        # Update fade duration from parameters
+        self.fade_duration = params.fade_duration
         need_new_group = False
         
         # Handle mouse input
-        if mouse_button_pressed and mouse_pos:
+        if params.mouse_button_pressed and params.mouse_pos:
             if not self.mouse_control.is_dragging:
                 # Start new drag
-                self.mouse_control.start_drag(mouse_pos)
+                self.mouse_control.start_drag(params.mouse_pos)
                 
                 # Create new group at click position
                 new_group = OrbitGroup(
-                    min_circles, max_circles, 0, base_size, 
-                    0, 0,
-                    0, 0, True
+                    params.min_circles, params.max_circles, 0, params.base_size, 
+                    0, 0, 0, 0, True
                 )
-                new_group.set_group_position(mouse_pos, self.center)
+                new_group.set_group_position(params.mouse_pos, self.center)
                 self.groups.append(new_group)
             else:
                 # Update existing drag
-                self.mouse_control.update_drag(mouse_pos, dt)
+                self.mouse_control.update_drag(params.mouse_pos, dt)
                 
                 # Update most recent group's position
                 if self.groups:
                     latest_group = self.groups[-1]
-                    latest_group.set_group_position(mouse_pos, self.center)
+                    latest_group.set_group_position(params.mouse_pos, self.center)
         
         elif self.mouse_control.is_dragging:
             # Handle mouse release
             velocity = self.mouse_control.end_drag()
             if self.groups:
                 latest_group = self.groups[-1]
-                latest_group.handle_mouse_release(mouse_pos, velocity, self.center)
-        
-        # Update spawn cooldown
-        if self.spawn_cooldown > 0:
-            self.spawn_cooldown -= dt
+                latest_group.handle_mouse_release(params.mouse_pos, velocity, self.center)
 
-        # Update all groups
+        # Update spawn cooldown
+        if self.spawn_cooldown_current > 0:
+            self.spawn_cooldown_current -= dt
+        
         active_groups = 0
         for group in self.groups:
             if not group.active:
@@ -183,11 +181,9 @@ class SpringleCircle:
 
             active_groups += 1
                 
-            # Update parameters from sliders
-            group.update_circle_acceleration(radial_acceleration, angular_acceleration)
-
-            # TODO update the base size via some randomizing function
-            group.update_circle_size(base_size)
+            # Update parameters from current settings
+            group.update_circle_acceleration(params.radial_acceleration, params.angular_acceleration)
+            group.update_circle_size(params.base_size)
             
             # Update color transition
             group.color_transition += dt * self.color_transition_speed
@@ -218,7 +214,7 @@ class SpringleCircle:
                 
                 # Add trail point if needed
                 if self.should_add_trail_point((x, y), circle['last_trail_pos'], 
-                                             current_size, space_factor):
+                                           current_size, params.space_factor):
                     circle['trail'].append((x, y, color, current_size, 0.0))
                     circle['last_trail_pos'] = (x, y)
                 
@@ -231,19 +227,20 @@ class SpringleCircle:
                         updated_trail.append((px, py, pcolor, psize, new_age))
                 circle['trail'] = updated_trail
         
-        if self.spawn_cooldown <= 0:
-                need_new_group = True
-                self.spawn_cooldown = 4.0
+        # Check if we should create a new group
+        if self.spawn_cooldown_current <= 0 and params.auto_generate:
+            need_new_group = True
+            self.spawn_cooldown_current = self.spawn_cooldown_start
                 
         # Spawn new group if needed
         if need_new_group and active_groups < MAX_GROUPS:
             new_group = OrbitGroup(
-                    min_circles, max_circles, 0, base_size, 
-                    radial_velocity, angular_velocity,
-                    radial_acceleration, angular_acceleration, False
+                    params.min_circles, params.max_circles, 0, params.base_size, 
+                    params.radial_velocity, params.angular_velocity,
+                    params.radial_acceleration, params.angular_acceleration, False
                 )
             self.groups.append(new_group)
-
+        
     def draw(self, screen, max_alpha):
         """Draw all groups and their trails."""
         drawable_elements = []
