@@ -5,7 +5,7 @@ import math
 from OrbitGroup import OrbitGroup
 from SpingleColors import SpingleColors
 from MouseControlSystem import MouseControlSystem
-from springle_params import SpringleParams
+from SpringleParams import SpringleParams
 
 MAX_GROUPS = 7
 class SpringleCircle:
@@ -194,34 +194,7 @@ class SpringleCircle:
             group.active = group.is_circle_visible((self.WIDTH, self.HEIGHT))
             
             # Update trails
-            for circle in group.circles:
-                # Get current position
-                x, y = group.get_circle_cartesian_pos(circle, self.center)
-                
-                # Calculate circle properties
-                current_size = self.calculate_circle_size(
-                    circle['motion'].radius,
-                    circle['base_size'],
-                    circle['size_variation']
-                )
-                
-                # Calculate color
-                color = self.colors.getColor(group.palette_index, circle['color_index'], group.color_transition)
-                
-                # Add trail point if needed
-                if self.should_add_trail_point((x, y), circle['last_trail_pos'], 
-                                           current_size, params.space_factor):
-                    circle['trail'].append((x, y, color, current_size, 0.0))
-                    circle['last_trail_pos'] = (x, y)
-                
-                # Update trail ages and remove old points
-                updated_trail = []
-                for point in circle['trail']:
-                    px, py, pcolor, psize, age = point
-                    new_age = age + dt
-                    if new_age < self.fade_duration:
-                        updated_trail.append((px, py, pcolor, psize, new_age))
-                circle['trail'] = updated_trail
+            self._update_group_trails(group, dt, params.space_factor)
         
         # Update spawn cooldown
         if self.spawn_cooldown_current >= 0:
@@ -240,7 +213,43 @@ class SpringleCircle:
                     params.radial_acceleration, params.angular_acceleration, False
                 )
             self.groups.append(new_group)
+            
+            self.spawn_cooldown_current = self.spawn_cooldown_start # Reset cooldown again just in case
+            
+        # Remove inactive groups to prevent buildup
+        self.groups = [group for group in self.groups if group.active]
         
+    def _update_group_trails(self, group, dt, space_factor):
+        """Update trails for a single group."""
+        for circle in group.circles:
+            # Get current position
+            x, y = group.get_circle_cartesian_pos(circle, self.center)
+            
+            # Calculate circle properties
+            current_size = self.calculate_circle_size(
+                circle['motion'].radius,
+                circle['base_size'],
+                circle['size_variation']
+            )
+            
+            # Calculate color
+            color = self.colors.getColor(group.palette_index, circle['color_index'], group.color_transition)
+            
+            # Add trail point if needed
+            if self.should_add_trail_point((x, y), circle['last_trail_pos'], 
+                                       current_size, space_factor):
+                circle['trail'].append((x, y, color, current_size, 0.0))
+                circle['last_trail_pos'] = (x, y)
+            
+            # Update trail ages and remove old points
+            updated_trail = []
+            for point in circle['trail']:
+                px, py, pcolor, psize, age = point
+                new_age = age + dt
+                if new_age < self.fade_duration:
+                    updated_trail.append((px, py, pcolor, psize, new_age))
+            circle['trail'] = updated_trail
+                
     def draw(self, screen, max_alpha):
         """Draw all groups and their trails."""
         drawable_elements = []

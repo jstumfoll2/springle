@@ -161,7 +161,7 @@ class OrbitGroup:
         # Filter out inactive circles
         active_circles = []
         for circle in self.circles:
-            if circle['motion'].radius <= visibility_threshold:
+            if math.fabs(circle['motion'].radius) <= visibility_threshold:
                 active_circles.append(circle)
             else:
                 # Clear memory used by trail

@@ -12,7 +12,8 @@ import os
 from OrbitGroup import OrbitGroup
 from SpringleCircle import SpringleCircle
 from FPSCounter import FPSCounter
-from springle_params import SpringleParams
+from SpringleParams import SpringleParams
+from BackgroundColorManager import BackgroundColorManager  # Add this with your other imports
 
 class Springle:
     # Default parameter values
@@ -188,7 +189,38 @@ class Springle:
                 container=self.options_panel
             )
             y_pos += 35  # Increased from 28 to 35 for better button spacing
-        
+            
+        # Add spacing before background color selector
+        y_pos += 10
+
+        # Add label for background color
+        pygame_gui.elements.UILabel(
+            relative_rect=pygame.Rect(left_margin, y_pos, control_width, 20),
+            text='Background Color',
+            manager=self.manager,
+            container=self.options_panel
+        )
+        y_pos += 22
+
+        # Create background color manager
+        self.bg_color_manager = BackgroundColorManager(
+            self.manager, 
+            self.options_panel,
+            left_margin, 
+            control_width
+        )
+
+        # Update the positions of the color controls
+        self.bg_color_manager.color_display.set_relative_position((left_margin, y_pos))
+        self.bg_color_manager.color_button.set_relative_position((left_margin + control_width - 90, y_pos))
+
+        # Increase y_pos for any controls that might come after
+        y_pos += 35
+
+        # Make sure the panel is tall enough to show all controls
+        panel_height = y_pos + 50  # Add some padding at the bottom
+        self.options_panel.set_dimensions((self.options_panel.rect.width, max(panel_height, self.height)))
+                
     def toggle_options_menu(self):
         """Toggle the visibility of the options menu."""
         self.show_options = not self.show_options
@@ -276,6 +308,9 @@ class Springle:
                 self.toggle_pause()
             elif event.ui_element == self.buttons['toggle_auto_generate']:
                 self.toggle_auto_generate()
+                
+        # Handle background color events
+        self.bg_color_manager.handle_event(event)
 
     def toggle_pause(self):
         """Toggle the pause state."""
@@ -402,7 +437,7 @@ class Springle:
 
     def draw(self):
         """Draw the game state."""
-        self.screen.fill((0, 0, 0))
+        self.screen.fill(self.bg_color_manager.get_color())  # Use selected background color
         
         # Draw circle system
         self.circle_system.draw(self.screen, self.DEFAULT_VALUES['max_alpha'])
