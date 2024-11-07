@@ -112,7 +112,19 @@ This project is licensed under the MIT License -- see LICENSE file for more deta
 
 - Inspired by particle systems and orbital mechanics
 - Built with Pygame and Pygame_gui
+- Code assistance and documentation provided by Anthropic's Claude AI
 - Special thanks to contributors and testers
+
+## Development Notes
+
+This project was developed with assistance from Claude, an AI assistant by Anthropic. Claude helped with:
+
+Code optimization suggestions
+Documentation writing
+Bug fixes and improvements
+Best practices implementation
+
+While Claude provided assistance, all code has been validated and tested by human developers.
 
 ## Author
 

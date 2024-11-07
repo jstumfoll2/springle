@@ -1,3 +1,13 @@
+"""
+Springle - Interactive Particle Animation System
+Developed with assistance from Claude AI (Anthropic)
+Copyright (c) 2024 Jason Stumfoll
+
+This file was created with the help of Claude AI, providing guidance on
+implementation, optimization, and best practices. All code has been reviewed
+and tested by human developers.
+"""
+
 import pygame
 import pygame_gui
 from datetime import datetime
