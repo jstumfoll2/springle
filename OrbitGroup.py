@@ -50,6 +50,8 @@ class OrbitGroup:
         self.palette_index = random.randint(0, self.colors.numPatterns() - 1)
         self.color_transition = 0
         
+        self.creation_time = 0
+        
         # Generate variations with improved distribution
         self.generate_variations()
         

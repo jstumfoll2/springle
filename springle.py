@@ -42,6 +42,9 @@ class Springle:
         self.auto_generate_groups = True
         self.show_options = False  # Track options menu visibility
         
+        # Store game variables
+        self.settings = self.DEFAULT_VALUES.copy()
+        
         # Initialize Pygame
         pygame.init()
         
@@ -58,18 +61,21 @@ class Springle:
         # Initialize game components
         self.fps_counter = FPSCounter()
         self.circle_system = SpringleCircle(
-            self.DEFAULT_VALUES['min_circles'],
-            self.DEFAULT_VALUES['max_circles'],
-            self.DEFAULT_VALUES['starting_radial_velocity'],
-            self.DEFAULT_VALUES['starting_angular_velocity'],
-            self.DEFAULT_VALUES['angular_acceleration'],
-            self.DEFAULT_VALUES['radial_acceleration'],
-            self.DEFAULT_VALUES['base_size'],
+            self.settings['min_circles'],
+            self.settings['max_circles'],
+            self.settings['starting_radial_velocity'],
+            self.settings['starting_angular_velocity'],
+            self.settings['angular_acceleration'],
+            self.settings['radial_acceleration'],
+            self.settings['base_size'],
             width, height
         )
         
         # Update circle system's color transition speed from default values
-        self.circle_system.color_transition_speed = self.DEFAULT_VALUES['color_transition_speed']
+        self.circle_system.color_transition_speed = self.settings['color_transition_speed']
+        self.circle_system.spawn_cooldown_start = self.settings['spawn_cooldown']
+        self.circle_system.spawn_cooldown_current = self.settings['spawn_cooldown']
+        self.circle_system.set_max_groups(self.settings['max_groups'])
         
         # Game state
         self.mouse_button_pressed = False
@@ -159,7 +165,7 @@ class Springle:
             # Add slider
             self.sliders[name] = pygame_gui.elements.UIHorizontalSlider(
                 relative_rect=pygame.Rect(left_margin, y_pos, control_width, 20),
-                start_value=self.DEFAULT_VALUES[name],
+                start_value=self.settings[name],
                 value_range=value_range,
                 click_increment=click_increment,
                 manager=self.manager,
@@ -271,6 +277,8 @@ class Springle:
                     self.toggle_pause()
                 elif event.key == pygame.K_o:
                     self.toggle_options_menu()
+                elif event.key == pygame.K_c:  # Add new keyboard command
+                    self.clear_groups()
             
             # Handle mouse events if not over UI
             if not ui_hover:
@@ -290,10 +298,32 @@ class Springle:
         if event.type == pygame_gui.UI_HORIZONTAL_SLIDER_MOVED:
             for name, slider in self.sliders.items():
                 if event.ui_element == slider:
-                    self.DEFAULT_VALUES[name] = event.value
+                    value = event.value
+                    self.settings[name] = value
+                    # Update circle system parameters immediately
                     if name == 'color_transition_speed':
-                        self.circle_system.color_transition_speed = event.value
-                    break
+                        self.circle_system.color_transition_speed = value
+                    elif name == 'max_groups':
+                        self.circle_system.set_max_groups(value)
+                    elif name == 'base_size':
+                        for group in self.circle_system.groups:
+                            group.update_circle_size(value)
+                    elif name == 'angular_acceleration':
+                        for group in self.circle_system.groups:
+                            group.update_circle_acceleration(
+                                group.circles[0]['motion'].radial_acceleration, 
+                                value
+                            )
+                    elif name == 'radial_acceleration':
+                        for group in self.circle_system.groups:
+                            group.update_circle_acceleration(
+                                value,
+                                group.circles[0]['motion'].angular_acceleration
+                            )
+                    elif name == 'fade_duration':
+                        self.circle_system.fade_duration = value
+                    elif name == 'spawn_cooldown':
+                        self.circle_system.spawn_cooldown_start = value
         
         elif event.type == pygame_gui.UI_BUTTON_PRESSED:
             if event.ui_element == self.buttons['clear_trails']:
@@ -328,6 +358,7 @@ class Springle:
 
     def clear_trails(self):
         """Clear all trail points."""
+        self.circle_system.fading_trails = []
         for group in self.circle_system.groups:
             for circle in group.circles:
                 circle['trail'] = []
@@ -335,53 +366,41 @@ class Springle:
 
     def create_new_group(self):
         """Create a new orbit group."""
-        active_groups = sum(1 for group in self.circle_system.groups if group.active)
-        if active_groups < self.DEFAULT_VALUES['max_groups']:
-            new_group = OrbitGroup(
-                self.DEFAULT_VALUES['min_circles'],
-                self.DEFAULT_VALUES['max_circles'],
-                0,
-                self.DEFAULT_VALUES['base_size'],
-                self.DEFAULT_VALUES['starting_radial_velocity'],
-                self.DEFAULT_VALUES['starting_angular_velocity'],
-                self.DEFAULT_VALUES['radial_acceleration'],
-                self.DEFAULT_VALUES['angular_acceleration'],
-                False
-            )
-            self.circle_system.groups.append(new_group)
+        new_group = OrbitGroup(
+            self.settings['min_circles'],
+            self.settings['max_circles'],
+            0,
+            self.settings['base_size'],
+            self.settings['starting_radial_velocity'],
+            self.settings['starting_angular_velocity'],
+            self.settings['radial_acceleration'],
+            self.settings['angular_acceleration'],
+            False
+        )
+        new_group.creation_time = self.circle_system.simulation_time  # Store creation time
+        self.circle_system.groups.append(new_group)
 
     def clear_groups(self):
         """Clear all groups and create a new one."""
         # Replace all groups with new one
         self.circle_system.groups = []
+        self.circle_system.fading_trails = []
+        self.circle_system.spawn_cooldown_current = self.circle_system.spawn_cooldown_start
         self.create_new_group()
 
     def reset_settings(self):
         """Reset all settings to their default values."""
-        # Store original default values
-        original_defaults = {
-            'min_circles': 4,
-            'max_circles': 12,
-            'angular_acceleration': 0.5,
-            'radial_acceleration': 3,
-            'starting_angular_velocity': 1.5,
-            'starting_radial_velocity': 100,
-            'base_size': 20,
-            'fade_duration': 2.0,
-            'max_alpha': 200,
-            'trail_spacing': 0.5,
-            'color_transition_speed': 0.2,
-            'max_groups': 7
-        }
-        
-        # Reset all values and update sliders
-        for name, value in original_defaults.items():
-            self.DEFAULT_VALUES[name] = value
+        # Reset to class default values
+        self.settings = self.DEFAULT_VALUES.copy()
+        for name, value in self.settings.items():
             if name in self.sliders:
                 self.sliders[name].set_current_value(value)
         
         # Update circle system properties that depend on these values
-        self.circle_system.color_transition_speed = original_defaults['color_transition_speed']
+        self.circle_system.color_transition_speed = self.settings['color_transition_speed']
+        self.circle_system.spawn_cooldown_start = self.settings['spawn_cooldown']
+        self.circle_system.spawn_cooldown_current = self.settings['spawn_cooldown']
+        self.circle_system.set_max_groups(self.settings['max_groups'])
         
         # Update button states
         self.buttons['pause'].set_text('Pause')
@@ -399,30 +418,30 @@ class Springle:
             current_mouse_pos = pygame.mouse.get_pos()
             
             # Manage group limits
-            if len(self.circle_system.groups) > self.DEFAULT_VALUES['max_groups']:
+            if len(self.circle_system.groups) > self.settings['max_groups']:
                 # Remove oldest non-mouse groups first
                 for group in self.circle_system.groups[:]:
                     if not group.is_mouse_group:
                         self.circle_system.groups.remove(group)
-                        if len(self.circle_system.groups) <= self.DEFAULT_VALUES['max_groups']:
+                        if len(self.circle_system.groups) <= self.settings['max_groups']:
                             break
             
             # Update spawn cooldown in circle system
-            self.circle_system.spawn_cooldown_start = self.DEFAULT_VALUES['spawn_cooldown']
+            self.circle_system.spawn_cooldown_start = self.settings['spawn_cooldown']
             
             # Create parameters object with current values
             params = SpringleParams(
-                min_circles=self.DEFAULT_VALUES['min_circles'],
-                max_circles=self.DEFAULT_VALUES['max_circles'],
-                radial_velocity=self.DEFAULT_VALUES['starting_radial_velocity'],
-                angular_velocity=self.DEFAULT_VALUES['starting_angular_velocity'],
-                radial_acceleration=self.DEFAULT_VALUES['radial_acceleration'],
-                angular_acceleration=self.DEFAULT_VALUES['angular_acceleration'],
-                base_size=self.DEFAULT_VALUES['base_size'],
+                min_circles=self.settings['min_circles'],
+                max_circles=self.settings['max_circles'],
+                radial_velocity=self.settings['starting_radial_velocity'],
+                angular_velocity=self.settings['starting_angular_velocity'],
+                radial_acceleration=self.settings['radial_acceleration'],
+                angular_acceleration=self.settings['angular_acceleration'],
+                base_size=self.settings['base_size'],
                 mouse_button_pressed=self.mouse_button_pressed,
                 mouse_pos=current_mouse_pos,
-                fade_duration=self.DEFAULT_VALUES['fade_duration'],
-                space_factor=self.DEFAULT_VALUES['trail_spacing'],
+                fade_duration=self.settings['fade_duration'],
+                space_factor=self.settings['trail_spacing'],
                 auto_generate=self.auto_generate_groups
             )
         
@@ -432,7 +451,7 @@ class Springle:
             # Update group counter
             active_groups = sum(1 for group in self.circle_system.groups if group.active)
             self.group_counter.set_text(
-                f'Active Groups: {active_groups} / {self.DEFAULT_VALUES["max_groups"]}'
+                f'Active Groups: {active_groups} / {self.settings["max_groups"]}'
             )
 
     def draw(self):
@@ -440,7 +459,7 @@ class Springle:
         self.screen.fill(self.bg_color_manager.get_color())  # Use selected background color
         
         # Draw circle system
-        self.circle_system.draw(self.screen, self.DEFAULT_VALUES['max_alpha'])
+        self.circle_system.draw(self.screen, self.settings['max_alpha'])
         
         # Draw mouse position
         self.draw_mouse_position()
@@ -465,7 +484,8 @@ class Springle:
         texts = [
             ('Press "s" to save screenshot', 'bottomleft', (10, self.height - 10)),
             ('Press "o" to toggle options', 'bottomleft', (10, self.height - 30)),
-            ('Press "space" to pause', 'bottomleft', (10, self.height - 50))
+            ('Press "c" to clear all groups', 'bottomleft', (10, self.height - 50)),
+            ('Press "space" to pause', 'bottomleft', (10, self.height - 70)),
         ]
         
         for text, anchor, pos in texts:

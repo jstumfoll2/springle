@@ -7,12 +7,14 @@ from SpingleColors import SpingleColors
 from MouseControlSystem import MouseControlSystem
 from SpringleParams import SpringleParams
 
-MAX_GROUPS = 7
 class SpringleCircle:
     def __init__(self, min_circles, max_circles, 
                  radial_velocity, angular_velocity,
                  radial_acceleration, angular_acceleration,  
                  base_size, WIDTH, HEIGHT):
+        
+        # Add simulation time tracking
+        self.simulation_time = 0.0
         
         # Initialize with default parameters
         self.params = SpringleParams.from_defaults()
@@ -20,6 +22,10 @@ class SpringleCircle:
         self.groups = [OrbitGroup(min_circles, max_circles, 0, base_size,
                                   radial_velocity, angular_velocity,
                                   radial_acceleration, angular_acceleration, False)]
+        # Store creation time with the initial group
+        self.groups[0].creation_time = 0.0
+        self.max_groups = 7  # Change from constant to instance variable
+        
         self.WIDTH = WIDTH
         self.HEIGHT = HEIGHT
         self.center = (WIDTH // 2, HEIGHT // 2)
@@ -133,6 +139,16 @@ class SpringleCircle:
         distance = math.sqrt(dx * dx + dy * dy)
         return (distance >= circle_size * space_factor)
 
+    def set_max_groups(self, value):
+        """Set the maximum number of allowed groups."""
+        self.max_groups = value
+        # Remove excess groups if current count exceeds new maximum
+        active_groups = [g for g in self.groups if g.active]
+        while len(active_groups) > self.max_groups:
+            oldest_group = min(active_groups, key=lambda g: g.creation_time)
+            self.groups.remove(oldest_group)
+            active_groups.remove(oldest_group)
+            
     def calculate_circle_size(self, radius, base_size, size_variation):
         """Calculate circle size based on radius from center."""
         size_factor = math.log(radius + 1) / 5 if radius > 0 else 1
@@ -140,6 +156,9 @@ class SpringleCircle:
         
     def update(self, dt: float, params: SpringleParams) -> None:
         """Update all groups and handle mouse interaction."""
+        # Update simulation time
+        self.simulation_time += dt
+        
         self.fade_duration = params.fade_duration
         need_new_group = False
         
@@ -151,6 +170,7 @@ class SpringleCircle:
                     params.min_circles, params.max_circles, 0, params.base_size, 
                     0, 0, 0, 0, True
                 )
+                new_group.creation_time = self.simulation_time  # Store creation time
                 new_group.set_group_position(params.mouse_pos, self.center)
                 self.groups.append(new_group)
             else:
@@ -194,17 +214,19 @@ class SpringleCircle:
             if was_active and not group.active:
                 for circle in group.circles:
                     if circle['trail']:
+                        # The trail points now have 6 values (x, y, color, size, age, creation_time)
                         self.fading_trails.extend([
-                            (x, y, color, size, age) for x, y, color, size, age in circle['trail']
+                            (group.creation_time, (x, y, color, size, age))  # Extract first 5 values, store with group time
+                            for x, y, color, size, age, _ in circle['trail']  # Unpack all 6 values
                         ])
                         circle['trail'] = []
         
         # Update fading trails
         updated_fading_trails = []
-        for x, y, color, size, age in self.fading_trails:
+        for creation_time, (x, y, color, size, age) in self.fading_trails:
             new_age = age + dt
             if new_age < self.fade_duration:
-                updated_fading_trails.append((x, y, color, size, new_age))
+                updated_fading_trails.append((creation_time, (x, y, color, size, new_age)))
         self.fading_trails = updated_fading_trails
         
         # Rest of update logic (spawn cooldown, new groups, etc.)
@@ -215,12 +237,14 @@ class SpringleCircle:
             need_new_group = True
             self.spawn_cooldown_current = self.spawn_cooldown_start
                 
-        if need_new_group and active_groups < MAX_GROUPS:
+        # Update max_groups when checking for new group creation
+        if need_new_group and active_groups < self.max_groups:  # Use instance variable instead of constant
             new_group = OrbitGroup(
-                    params.min_circles, params.max_circles, 0, params.base_size, 
-                    params.radial_velocity, params.angular_velocity,
-                    params.radial_acceleration, params.angular_acceleration, False
-                )
+                params.min_circles, params.max_circles, 0, params.base_size, 
+                params.radial_velocity, params.angular_velocity,
+                params.radial_acceleration, params.angular_acceleration, False
+            )
+            new_group.creation_time = self.simulation_time
             self.groups.append(new_group)
             self.spawn_cooldown_current = self.spawn_cooldown_start
             
@@ -246,36 +270,41 @@ class SpringleCircle:
             # Add trail point if needed
             if self.should_add_trail_point((x, y), circle['last_trail_pos'], 
                                        current_size, space_factor):
-                circle['trail'].append((x, y, color, current_size, 0.0))
+                # Include creation time with trail point
+                circle['trail'].append((x, y, color, current_size, 0.0, self.simulation_time))
                 circle['last_trail_pos'] = (x, y)
             
             # Update trail ages and remove old points
             updated_trail = []
             for point in circle['trail']:
-                px, py, pcolor, psize, age = point
+                px, py, pcolor, psize, age, creation_time = point
                 new_age = age + dt
                 if new_age < self.fade_duration:
-                    updated_trail.append((px, py, pcolor, psize, new_age))
+                    updated_trail.append((px, py, pcolor, psize, new_age, creation_time))
             circle['trail'] = updated_trail
-                
+            
     def draw(self, screen, max_alpha):
         """Draw all groups and their trails."""
         drawable_elements = []
         
-        # Add fading trails first
-        for x, y, color, size, age in self.fading_trails:
+        # First, gather all drawable elements by group
+        group_elements = {}  # Dictionary of lists, keyed by group creation time
+        
+        # Add fading trails
+        for creation_time, (x, y, color, size, age) in self.fading_trails:
             fade_progress = age / self.fade_duration
             eased_fade = 1 - (fade_progress * fade_progress * fade_progress)
-            alpha = int(max(0, max_alpha * eased_fade))  # Allow complete fade to 0
+            alpha = int(max(0, max_alpha * eased_fade))
             
-            if alpha > 0:  # Only add if still visible
-                drawable_elements.append({
+            if alpha > 0:
+                if creation_time not in group_elements:
+                    group_elements[creation_time] = []
+                group_elements[creation_time].append({
                     'type': 'trail',
                     'x': x,
                     'y': y,
                     'color': color,
                     'size': size,
-                    'age': age,
                     'alpha': alpha
                 })
         
@@ -284,21 +313,23 @@ class SpringleCircle:
             if not group.active:
                 continue
                 
+            if group.creation_time not in group_elements:
+                group_elements[group.creation_time] = []
+                
             for circle in group.circles:
                 # Add trails
-                for x, y, color, size, age in circle['trail']:
+                for x, y, color, size, age, creation_time in circle['trail']:
                     fade_progress = age / self.fade_duration
                     eased_fade = 1 - (fade_progress * fade_progress * fade_progress)
-                    alpha = int(max(0, max_alpha * eased_fade))  # Match fading trail behavior
+                    alpha = int(max(0, max_alpha * eased_fade))
                     
-                    if alpha > 0:  # Only add if still visible
-                        drawable_elements.append({
+                    if alpha > 0:
+                        group_elements[group.creation_time].append({
                             'type': 'trail',
                             'x': x,
                             'y': y,
                             'color': color,
                             'size': size,
-                            'age': age,
                             'alpha': alpha
                         })
                 
@@ -313,24 +344,24 @@ class SpringleCircle:
                         circle['size_variation']
                     )
                     
-                    drawable_elements.append({
+                    group_elements[group.creation_time].append({
                         'type': 'circle',
                         'x': x,
                         'y': y,
                         'color': color,
                         'size': size,
-                        'age': -1,
                         'alpha': 255
                     })
         
-        # Draw all elements with gradient effect
-        for element in drawable_elements:
-            gradient_surface = self._get_cached_gradient(
-                element['size'], 
-                element['color'], 
-                element['alpha']
-            )
-            screen.blit(gradient_surface, (
-                element['x'] - element['size'],
-                element['y'] - element['size']
-            ))
+        # Draw groups in order of creation time (older groups first)
+        for creation_time in sorted(group_elements.keys()):
+            for element in group_elements[creation_time]:
+                gradient_surface = self._get_cached_gradient(
+                    element['size'], 
+                    element['color'], 
+                    element['alpha']
+                )
+                screen.blit(gradient_surface, (
+                    element['x'] - element['size'],
+                    element['y'] - element['size']
+                ))
