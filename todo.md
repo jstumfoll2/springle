@@ -27,3 +27,5 @@ Move controls into an options menu
 color gradient for the shapes
 
 delete groups if exceeding max groups when adding new mouse groups
+
+pause button and/or screenshot button

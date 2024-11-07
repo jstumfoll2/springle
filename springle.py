@@ -25,15 +25,15 @@ manager = pygame_gui.UIManager((WIDTH, HEIGHT))
 fps_counter = FPSCounter()
 
 # Initial parameters
-MIN_CIRCLES = 6
+MIN_CIRCLES = 4
 MAX_CIRCLES = 12
-ANGULAR_ACCELERATION = 40
+ANGULAR_ACCELERATION = 0.5
 RADIAL_ACCELERATION = 3
-START_ANGULAR_VELOCITY = 25
-START_RADIAL_VELOCITY = 200
-BASE_SIZE = 25
-FADE_DURATION = 10.0
-MAX_ALPHA = 128  # New parameter for max trail alpha
+START_ANGULAR_VELOCITY = 1.5
+START_RADIAL_VELOCITY = 100
+BASE_SIZE = 20
+FADE_DURATION = 2.0
+MAX_ALPHA = 200  # New parameter for max trail alpha
 TRAIL_SPACING_FACTOR = 0.5
 
 # First, define original/default values at the start of program, after the WIDTH/HEIGHT definitions

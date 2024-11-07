@@ -2,42 +2,168 @@ import math
 import random
 
 class PolarMotion:
+    """
+    Handles motion in polar coordinates with proper bounds and limits.
+    Includes safety checks and normalization for physical parameters.
+    """
+    
+    # Class-level constants for limits
+    MIN_RADIUS = -2000
+    MAX_RADIUS = 2000  # Adjust based on screen size
+    
+    # Velocity limits (in units per second)
+    MAX_RADIAL_VELOCITY = 1000
+    MIN_RADIAL_VELOCITY = -1000
+    MAX_ANGULAR_VELOCITY = math.pi * 4  # 2 full rotations per second
+    MIN_ANGULAR_VELOCITY = -math.pi * 4
+    
+    # Acceleration limits (in units per second squared)
+    MAX_RADIAL_ACCELERATION = 2000
+    MIN_RADIAL_ACCELERATION = -2000
+    MAX_ANGULAR_ACCELERATION = math.pi * 8  # 4 rotations/sec²
+    MIN_ANGULAR_ACCELERATION = -math.pi * 8
+
     def __init__(self, radius=0, theta=0, radial_velocity=0, angular_velocity=0,
-                 radial_acceleration=0,angular_acceleration=0):
+                 radial_acceleration=0, angular_acceleration=0):
         """
-        Initialize polar motion with position and velocity components.
+        Initialize polar motion with bounds checking.
         
         Args:
             radius (float): Initial distance from origin
             theta (float): Initial angle in radians
-            radial_velocity (float): Initial velocity along radius (outward positive)
-            angular_velocity (float): Initial angular velocity (radians/sec, positive is counterclockwise)
+            radial_velocity (float): Initial velocity along radius
+            angular_velocity (float): Initial angular velocity (radians/sec)
+            radial_acceleration (float): Radial acceleration (units/sec²)
+            angular_acceleration (float): Angular acceleration (radians/sec²)
         """
-        self.radius = radius
-        self.theta = theta
-        self.radial_velocity = radial_velocity
-        self.angular_velocity = angular_velocity
-        self.radial_acceleration = radial_acceleration
-        self.angular_acceleration = angular_acceleration
+        # Initialize with bounds checking
+        self._radius = self._clamp_radius(radius)
+        self._theta = self._normalize_angle(theta)
+        
+        # Initialize velocities with limits
+        self._radial_velocity = self._clamp_radial_velocity(radial_velocity)
+        self._angular_velocity = self._clamp_angular_velocity(angular_velocity)
+        
+        # Initialize accelerations with limits
+        self._radial_acceleration = self._clamp_radial_acceleration(radial_acceleration)
+        self._angular_acceleration = self._clamp_angular_acceleration(angular_acceleration)
+        
+        # Track total time for potential debug/analysis
+        self._total_time = 0.0
+    
+    # Property getters and setters with bounds checking
+    @property
+    def radius(self):
+        return self._radius
+    
+    @radius.setter
+    def radius(self, value):
+        self._radius = self._clamp_radius(value)
+    
+    @property
+    def theta(self):
+        return self._theta
+    
+    @theta.setter
+    def theta(self, value):
+        self._theta = self._normalize_angle(value)
+        
+    @property
+    def radial_velocity(self):
+        return self._radial_velocity
+    
+    @radial_velocity.setter
+    def radial_velocity(self, value):
+        self._radial_velocity = self._clamp_radial_velocity(value)
+        
+    @property
+    def angular_velocity(self):
+        return self._angular_velocity
+    
+    @angular_velocity.setter
+    def angular_velocity(self, value):
+        self._angular_velocity = self._clamp_angular_velocity(value)
+        
+    @property
+    def radial_acceleration(self):
+        return self._radial_acceleration
+    
+    @radial_acceleration.setter
+    def radial_acceleration(self, value):
+        self._radial_acceleration = self._clamp_radial_acceleration(value)
+        
+    @property
+    def angular_acceleration(self):
+        return self._angular_acceleration
+    
+    @angular_acceleration.setter
+    def angular_acceleration(self, value):
+        self._angular_acceleration = self._clamp_angular_acceleration(value)
+    
+    # Clamping and normalization methods
+    def _clamp_radius(self, value):
+        """Ensure radius stays within valid bounds."""
+        return max(self.MIN_RADIUS, min(self.MAX_RADIUS, value))
+    
+    def _normalize_angle(self, angle):
+        """Normalize angle to [0, 2π] range."""
+        return angle % (2 * math.pi)
+    
+    def _clamp_radial_velocity(self, value):
+        """Limit radial velocity to prevent excessive speeds."""
+        if -1 < value < 1:
+            return 1
+        else:
+            return max(self.MIN_RADIAL_VELOCITY, min(self.MAX_RADIAL_VELOCITY, value))
+    
+    def _clamp_angular_velocity(self, value):
+        """Limit angular velocity to prevent excessive rotation."""
+        if -0.05 < value < 0.05:
+            return 0.05
+        else:
+            return max(self.MIN_ANGULAR_VELOCITY, min(self.MAX_ANGULAR_VELOCITY, value))
+    
+    def _clamp_radial_acceleration(self, value):
+        """Limit radial acceleration to prevent unstable motion."""
+        return max(self.MIN_RADIAL_ACCELERATION, min(self.MAX_RADIAL_ACCELERATION, value))
+    
+    def _clamp_angular_acceleration(self, value):
+        """Limit angular acceleration to prevent unstable rotation."""
+        return max(self.MIN_ANGULAR_ACCELERATION, min(self.MAX_ANGULAR_ACCELERATION, value))
     
     def update(self, dt):
         """
-        Update position based on velocities and additional motion parameters.
+        Update position based on velocities and accelerations.
+        Uses improved numerical integration and ensures stable motion.
         
         Args:
             dt (float): Time step in seconds
         """
-        # Update radius based on radial velocity and acceleration
-        self.radial_velocity += (self.radial_acceleration) * dt * dt / 2.0
-        self.radius += (self.radial_velocity) * dt
+        self._total_time += dt
         
-        # Update angle based on angular velocity and acceleration
-        self.angular_velocity += (self.angular_acceleration) * dt * dt / 2.0
-        self.theta += (self.angular_velocity) * dt
+        # Update velocities using acceleration (with mid-point integration)
+        mid_radial_velocity = self._radial_velocity + self._radial_acceleration * dt / 2
+        mid_angular_velocity = self._angular_velocity + self._angular_acceleration * dt / 2
         
-        # Normalize theta to stay within [0, 2π]
-        self.theta = self.theta % (2 * math.pi)
-    
+        # Clamp mid-point velocities
+        mid_radial_velocity = self._clamp_radial_velocity(mid_radial_velocity)
+        mid_angular_velocity = self._clamp_angular_velocity(mid_angular_velocity)
+        
+        # Update final velocities
+        self._radial_velocity = self._clamp_radial_velocity(
+            self._radial_velocity + self._radial_acceleration * dt
+        )
+        self._angular_velocity = self._clamp_angular_velocity(
+            self._angular_velocity + self._angular_acceleration * dt
+        )
+        
+        # Update position using mid-point velocities for better accuracy
+        self._radius = self._clamp_radius(
+            self._radius + mid_radial_velocity * dt
+        )
+        self._theta = self._normalize_angle(
+            self._theta + mid_angular_velocity * dt
+        )
     
     def to_cartesian(self, origin_x=0, origin_y=0):
         """
@@ -50,78 +176,84 @@ class PolarMotion:
         Returns:
             tuple: (x, y) coordinates
         """
-        x = origin_x + self.radius * math.cos(self.theta)
-        y = origin_y + self.radius * math.sin(self.theta)
+        x = origin_x + self._radius * math.cos(self._theta)
+        y = origin_y + self._radius * math.sin(self._theta)
         return (x, y)
     
-    def decompose_velocity(self, velocity, center_pos, current_pos):
+    def set_velocity_from_release(self, velocity_data, center_pos, current_pos):
         """
-        Decompose cartesian velocity (vx, vy) into polar velocity components (dr/dt, dθ/dt).
+        Set velocities based on release velocity with improved stability.
         
         Args:
-            velocity (tuple): (vx, vy) velocity components in cartesian coordinates
-            center_pos (tuple): (x, y) position of the origin/center
-            current_pos (tuple): (x, y) current position
+            velocity_data: Either (vx, vy) or ((vx, vy), (vr, vtheta))
+            center_pos: (x, y) position of center/origin
+            current_pos: (x, y) current position
+        """
+        # Handle both old and new velocity formats
+        if isinstance(velocity_data, tuple) and len(velocity_data) == 2:
+            if isinstance(velocity_data[0], (tuple, list)):
+                # New format: ((vx, vy), (vr, vtheta))
+                cart_velocity, polar_velocity = velocity_data
+                v_radial, v_angular = polar_velocity
+                
+                # correct sign and apply scale for better feel
+                v_radial = v_radial * 2.0
+                v_angular = v_angular * -2.0
+            else:
+                # Old format: (vx, vy)
+                cart_velocity = velocity_data
+                v_radial, v_angular = self.decompose_velocity(cart_velocity, center_pos, current_pos)
+        else:
+            print(f"Warning: Unexpected velocity format: {velocity_data}")
+            return
+
+        # Scale and clamp velocities for better behavior
+        self._radial_velocity = self._clamp_radial_velocity(v_radial * 1)
+        
+        # Calculate angular velocity based on current radius to prevent instability
+        if self._radius > 0:
+            angular = self._clamp_angular_velocity(v_angular * 1)
+        else:
+            # If at center, use a safe random value
+            angular = random.uniform(-math.pi/2, math.pi/2)
+        
+        self._angular_velocity = angular
+        
+        # Reset accelerations on release
+        self._radial_acceleration = 0
+        self._angular_acceleration = 0
+
+    def decompose_velocity(self, velocity, center_pos, current_pos):
+        """
+        Decompose cartesian velocity into polar components with improved accuracy.
+        
+        Args:
+            velocity: (vx, vy) velocity components
+            center_pos: (x, y) position of origin/center
+            current_pos: (x, y) current position
             
         Returns:
             tuple: (radial_velocity, angular_velocity)
-                radial_velocity (dr/dt): positive means moving away from center
-                angular_velocity (dθ/dt): positive means counterclockwise rotation
         """
-        # Get relative position from center
-        x = current_pos[0] - center_pos[0]
-        y = -(current_pos[1] - center_pos[1])  # Flip y for mathematical coordinates
-        
-        # Get velocity components (flip vy to match mathematical coordinates)
-        vx, vy = velocity[0], -velocity[1]
-        
-        # Calculate radius
-        r = math.sqrt(x*x + y*y)
-        if r == 0:
+        try:
+            # Get relative position from center
+            x = current_pos[0] - center_pos[0]
+            y = -(current_pos[1] - center_pos[1])  # Flip y for mathematical coordinates
+            
+            # Get velocity components (flip vy to match mathematical coordinates)
+            vx, vy = velocity[0], -velocity[1]
+            
+            # Calculate radius with safety check
+            r = math.sqrt(x*x + y*y)
+            if r < 0.1:  # Prevent division by zero with small threshold
+                return 0, 0
+                
+            # Calculate velocity components with improved accuracy
+            v_r = -(-x * vy + y * vx) / r  # Radial velocity
+            v_t = -(x * vx + y * vy) / r   # Tangential velocity
+            
+            return self._clamp_radial_velocity(v_r), v_t
+            
+        except (TypeError, AttributeError) as e:
+            print(f"Error decomposing velocity: {e}")
             return 0, 0
-            
-        # Radial velocity component (v_r)
-        v_r = -(-x * vy + y * vx) / r
-        
-        # Tangential velocity component (v_theta)
-        v_t = -(x * vx + y * vy) / r 
-        
-        # print("xy Postion: ", x, y)
-        # print("Polar velocity: ", v_r, v_t)
-        return  v_r, v_t
-        
-    def set_velocity_from_release(self, velocity, center_pos, current_pos):
-        """
-        Set velocities based on release velocity.
-        
-        Args:
-            velocity (tuple): (vx, vy) velocity components
-            center_pos (tuple): (x, y) position of center/origin
-            current_pos (tuple): (x, y) current position
-            
-        Returns:
-            tuple: (expansion_rate, rotation_speed)
-        """
-        # Get velocity components
-        v_radial, v_tangential = self.decompose_velocity(velocity, center_pos, current_pos)
-        
-        # # Set the motion parameters
-        # self.radial_velocity = v_radial
-        # if self.radius > 0:
-        #     self.angular_velocity = (v_tangential / self.radius)
-        # else:
-        #     self.angular_velocity = random.random() * 10
-            
-        # Set the motion parameters
-        # Scale the velocities to make them more noticeable
-        # These scaling factors can be adjusted based on your needs
-        self.radial_velocity = v_radial * 1 # Increase radial effect
-        self.angular_velocity = v_tangential * 0.01  # Increase angular effect
-        
-        # zero out the accelerations
-        self.radial_acceleration = 0
-        self.angular_acceleration = 0
-        
-    def update_acceleration(self, radial, angular):
-        self.radial_acceleration=radial
-        self.angular_acceleration=angular

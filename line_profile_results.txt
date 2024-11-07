@@ -1,0 +1,266 @@
+Timer unit: 1e-07 s
+
+Total time: 0.162642 s
+File: n:\Spingle\springle\SpringleCircle.py
+Function: _get_cached_gradient at line 59
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    59                                               def _get_cached_gradient(self, size, color, alpha):
+    60                                                   """Get or create a cached gradient surface."""
+    61      3528      29689.0      8.4      1.8          cache_key = self._get_cache_key(size, color, alpha)
+    62                                                   
+    63      3528       6694.0      1.9      0.4          if cache_key not in self.gradient_cache:
+    64                                                       # Create new gradient surface if not in cache
+    65      3528    1573156.0    445.9     96.7              surface = self._create_gradient_circle(size, color, alpha)
+    66                                                       
+    67                                                       # Only cache if size is within reasonable limits
+    68      3528       5760.0      1.6      0.4              if size <= self.max_cached_size:
+    69      3528       7626.0      2.2      0.5                  self.gradient_cache[cache_key] = surface
+    70      3528       3493.0      1.0      0.2              return surface
+    71                                                   
+    72                                                   return self.gradient_cache[cache_key]
+
+Total time: 0.117075 s
+File: n:\Spingle\springle\SpringleCircle.py
+Function: _create_gradient_circle at line 74
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    74                                               def _create_gradient_circle(self, size, color, alpha):
+    75                                                   """Create a circle with a radial gradient effect."""
+    76      3528      70545.0     20.0      6.0          surface = pygame.Surface((int(size * 2), int(size * 2)), pygame.SRCALPHA)
+    77      3528       5049.0      1.4      0.4          center = (size, size)
+    78                                                   
+    79                                                   # Optimize number of steps based on size
+    80      3528      11389.0      3.2      1.0          num_steps = min(15, max(5, int(size / 4)))
+    81                                                   
+    82                                                   # Draw base gradient circles
+    83     42768      58970.0      1.4      5.0          for i in range(num_steps):
+    84     39240      74131.0      1.9      6.3              current_radius = size * (1 - (i / num_steps))
+    85     39240      50791.0      1.3      4.3              gradient_factor = i / num_steps
+    86     39240      48873.0      1.2      4.2              gradient_color = (
+    87     39240      93239.0      2.4      8.0                  int(color[0] * (1 - gradient_factor * 0.5)),
+    88     39240      78316.0      2.0      6.7                  int(color[1] * (1 - gradient_factor * 0.5)),
+    89     39240      77753.0      2.0      6.6                  int(color[2] * (1 - gradient_factor * 0.5)),
+    90     39240      76170.0      1.9      6.5                  int(alpha * (1 - gradient_factor * 0.3))
+    91                                                       )
+    92     39240     521562.0     13.3     44.5              pygame.draw.circle(surface, gradient_color, center, current_radius)
+    93                                                   
+    94      3528       3962.0      1.1      0.3          return surface
+
+Total time: 0.0358429 s
+File: n:\Spingle\springle\SpringleCircle.py
+Function: should_add_trail_point at line 119
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   119                                               def should_add_trail_point(self, new_pos, last_pos, circle_size, space_factor, dt=0):
+   120                                                   """Determine if a new trail point should be added based on distance."""
+   121     37723      49670.0      1.3     13.9          if last_pos is None:
+   122       143        162.0      1.1      0.0              return True
+   123     37580      79487.0      2.1     22.2          dx = new_pos[0] - last_pos[0]
+   124     37580      65823.0      1.8     18.4          dy = new_pos[1] - last_pos[1]
+   125     37580     100016.0      2.7     27.9          distance = math.sqrt(dx * dx + dy * dy)
+   126     37580      63271.0      1.7     17.7          return (distance >= circle_size * space_factor)
+
+Total time: 0.0242574 s
+File: n:\Spingle\springle\SpringleCircle.py
+Function: calculate_circle_size at line 128
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   128                                               def calculate_circle_size(self, radius, base_size, size_variation):
+   129                                                   """Calculate circle size based on radius from center."""
+   130     50651     154967.0      3.1     63.9          size_factor = math.log(radius + 1) / 5 if radius > 0 else 1
+   131     50651      87607.0      1.7     36.1          return base_size * size_variation * size_factor
+
+Total time: 5.18068 s
+File: n:\Spingle\springle\SpringleCircle.py
+Function: update at line 133
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   133                                               def update(self, dt, min_circles, max_circles, 
+   134                                                            radial_velocity, angular_velocity,
+   135                                                            radial_acceleration, angular_acceleration, 
+   136                                                            base_size, mouse_button_pressed, mouse_pos, fade_duration,
+   137                                                         space_factor):
+   138                                                   """Update all groups and handle mouse interaction."""
+   139                                                   # Update fade duration from slider
+   140       456       3682.0      8.1      0.0          self.fade_duration = fade_duration
+   141       456        818.0      1.8      0.0          need_new_group = False
+   142                                                   
+   143                                                   # Handle mouse input
+   144       456       1374.0      3.0      0.0          if mouse_button_pressed and mouse_pos:
+   145       143        503.0      3.5      0.0              if not self.mouse_control.is_dragging:
+   146                                                           # Start new drag
+   147        13        423.0     32.5      0.0                  self.mouse_control.start_drag(mouse_pos)
+   148                                                           
+   149                                                           # Create new group at click position
+   150        26       7002.0    269.3      0.0                  new_group = OrbitGroup(
+   151        13         24.0      1.8      0.0                      min_circles, max_circles, 0, base_size, 
+   152        13         38.0      2.9      0.0                      0, 0,
+   153        13         17.0      1.3      0.0                      0, 0, True
+   154                                                           )
+   155        13       1705.0    131.2      0.0                  new_group.set_group_position(mouse_pos, self.center)
+   156        13         70.0      5.4      0.0                  self.groups.append(new_group)
+   157                                                       else:
+   158                                                           # Update existing drag
+   159       130       6269.0     48.2      0.0                  self.mouse_control.update_drag(mouse_pos, dt)
+   160                                                           
+   161                                                           # Update most recent group's position
+   162       130        247.0      1.9      0.0                  if self.groups:
+   163       130        313.0      2.4      0.0                      latest_group = self.groups[-1]
+   164       130      12926.0     99.4      0.0                      latest_group.set_group_position(mouse_pos, self.center)
+   165                                                   
+   166       313       2913.0      9.3      0.0          elif self.mouse_control.is_dragging:
+   167                                                       # Handle mouse release
+   168        13       1689.0    129.9      0.0              velocity = self.mouse_control.end_drag()
+   169        13         32.0      2.5      0.0              if self.groups:
+   170        13         26.0      2.0      0.0                  latest_group = self.groups[-1]
+   171        13       3319.0    255.3      0.0                  latest_group.handle_mouse_release(mouse_pos, velocity, self.center)
+   172                                                   
+   173                                                   # Update spawn cooldown
+   174       456       2698.0      5.9      0.0          if self.spawn_cooldown > 0:
+   175       455       2060.0      4.5      0.0              self.spawn_cooldown -= dt
+   176                                           
+   177                                                   # Update all groups
+   178       456        848.0      1.9      0.0          active_groups = 0
+   179      5009      11096.0      2.2      0.0          for group in self.groups:
+   180      4553      10619.0      2.3      0.0              if not group.active:
+   181       801        838.0      1.0      0.0                  continue
+   182                                           
+   183      3752       7616.0      2.0      0.0              active_groups += 1
+   184                                                           
+   185                                                       # Update parameters from sliders
+   186      3752     197789.0     52.7      0.4              group.update_circle_acceleration(radial_acceleration, angular_acceleration)
+   187                                           
+   188                                                       # TODO update the base size via some randomizing function
+   189      3752     101933.0     27.2      0.2              group.update_circle_size(base_size)
+   190                                                       
+   191                                                       # Update color transition
+   192      3752      12208.0      3.3      0.0              group.color_transition += dt * self.color_transition_speed
+   193      3752       8670.0      2.3      0.0              if group.color_transition >= 1:
+   194         6         15.0      2.5      0.0                  group.color_transition = 0
+   195         6         41.0      6.8      0.0                  group.palette_index = (group.palette_index + 1) % self.colors.numPatterns()
+   196                                                       
+   197                                                       # Update circle positions
+   198      3752     540322.0    144.0      1.0              group.update_circle_positions(dt)
+   199                                                       
+   200                                                       # Check if group is still visible
+   201      3752      53081.0     14.1      0.1              group.active = group.is_circle_visible((self.WIDTH, self.HEIGHT))
+   202                                                       
+   203                                                       # Update trails
+   204     41475      57117.0      1.4      0.1              for circle in group.circles:
+   205                                                           # Get current position
+   206     37723     608721.0     16.1      1.2                  x, y = group.get_circle_cartesian_pos(circle, self.center)
+   207                                                           
+   208                                                           # Calculate circle properties
+   209     75446     483757.0      6.4      0.9                  current_size = self.calculate_circle_size(
+   210     37723      57003.0      1.5      0.1                      circle['motion'].radius,
+   211     37723      54777.0      1.5      0.1                      circle['base_size'],
+   212     37723      45319.0      1.2      0.1                      circle['size_variation']
+   213                                                           )
+   214                                                           
+   215                                                           # Calculate color
+   216     37723    1413521.0     37.5      2.7                  color = self.colors.getColor(group.palette_index, circle['color_index'], group.color_transition)
+   217                                                           
+   218                                                           # Add trail point if needed
+   219     75446     813577.0     10.8      1.6                  if self.should_add_trail_point((x, y), circle['last_trail_pos'], 
+   220     37723      44764.0      1.2      0.1                                               current_size, space_factor):
+   221     31394      88507.0      2.8      0.2                      circle['trail'].append((x, y, color, current_size, 0.0))
+   222     31394      66913.0      2.1      0.1                      circle['last_trail_pos'] = (x, y)
+   223                                                           
+   224                                                           # Update trail ages and remove old points
+   225     37723      48506.0      1.3      0.1                  updated_trail = []
+   226   5531590    7474211.0      1.4     14.4                  for point in circle['trail']:
+   227   5493867   11492485.0      2.1     22.2                      px, py, pcolor, psize, age = point
+   228   5493867    8112884.0      1.5     15.7                      new_age = age + dt
+   229   5493867    7961491.0      1.4     15.4                      if new_age < self.fade_duration:
+   230   5493867   11348171.0      2.1     21.9                          updated_trail.append((px, py, pcolor, psize, new_age))
+   231     37723     638680.0     16.9      1.2                  circle['trail'] = updated_trail
+   232                                                   
+   233       456       1868.0      4.1      0.0          if self.spawn_cooldown <= 0:
+   234         2          3.0      1.5      0.0                  need_new_group = True
+   235         2          5.0      2.5      0.0                  self.spawn_cooldown = 4.0
+   236                                                           
+   237                                                   # Spawn new group if needed
+   238       456        882.0      1.9      0.0          if need_new_group and active_groups < MAX_GROUPS:
+   239         2        454.0    227.0      0.0              new_group = OrbitGroup(
+   240         1          1.0      1.0      0.0                      min_circles, max_circles, 0, base_size, 
+   241         1          2.0      2.0      0.0                      radial_velocity, angular_velocity,
+   242         1          2.0      2.0      0.0                      radial_acceleration, angular_acceleration, False
+   243                                                           )
+   244         1          2.0      2.0      0.0              self.groups.append(new_group)
+
+Total time: 64.7733 s
+File: n:\Spingle\springle\SpringleCircle.py
+Function: draw at line 246
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   246                                               def draw(self, screen, max_alpha):
+   247                                                   """Draw all groups and their trails."""
+   248       300        617.0      2.1      0.0          drawable_elements = []
+   249                                                   
+   250      3450       6018.0      1.7      0.0          for group in self.groups:
+   251      3150       6058.0      1.9      0.0              if not group.active:
+   252       606        608.0      1.0      0.0                  continue
+   253                                                           
+   254                                                       # Add trails
+   255     28096      40865.0      1.5      0.0              for circle in group.circles:
+   256   4027873    7817490.0      1.9      1.2                  for x, y, color, size, age in circle['trail']:
+   257   4002321    8783765.0      2.2      1.4                      if 0 <= x <= self.WIDTH and 0 <= y <= self.HEIGHT:
+   258   2146082    3238406.0      1.5      0.5                          fade_progress = age / self.fade_duration
+   259   2146082    4453489.0      2.1      0.7                          alpha = int(max_alpha * (1 - fade_progress))
+   260   2146082    3019267.0      1.4      0.5                          if alpha > 0:
+   261   4292164   10853874.0      2.5      1.7                              drawable_elements.append({
+   262   2146082    2282104.0      1.1      0.4                                  'type': 'trail',
+   263   2146082    2234014.0      1.0      0.3                                  'x': x,
+   264   2146082    1931740.0      0.9      0.3                                  'y': y,
+   265   2146082    1938974.0      0.9      0.3                                  'color': color,
+   266   2146082    1938294.0      0.9      0.3                                  'size': size,
+   267   2146082    1939861.0      0.9      0.3                                  'age': age,
+   268   2146082    1930979.0      0.9      0.3                                  'alpha': alpha
+   269                                                                       })
+   270                                                       
+   271                                                       # Add current circles
+   272     28096      41141.0      1.5      0.0              for circle in group.circles:
+   273     25552     413995.0     16.2      0.1                  x, y = group.get_circle_cartesian_pos(circle, self.center)
+   274                                                           
+   275     25552      70938.0      2.8      0.0                  if 0 <= x <= self.WIDTH*1.2 and 0 <= y <= self.HEIGHT*1.2:
+   276     12928     453781.0     35.1      0.1                      color = self.colors.getColor(group.palette_index, circle['color_index'], group.color_transition)
+   277                                                               
+   278     25856     168767.0      6.5      0.0                      size = self.calculate_circle_size(
+   279     12928      19722.0      1.5      0.0                          circle['motion'].radius,
+   280     12928      18918.0      1.5      0.0                          circle['base_size'],
+   281     12928      14160.0      1.1      0.0                          circle['size_variation']
+   282                                                               )
+   283                                                               
+   284     25856      52909.0      2.0      0.0                      drawable_elements.append({
+   285     12928      13346.0      1.0      0.0                          'type': 'circle',
+   286     12928      14808.0      1.1      0.0                          'x': x,
+   287     12928      12875.0      1.0      0.0                          'y': y,
+   288     12928      12754.0      1.0      0.0                          'color': color,
+   289     12928      12576.0      1.0      0.0                          'size': size,
+   290     12928      13387.0      1.0      0.0                          'age': -1,
+   291     12928      11532.0      0.9      0.0                          'alpha': 255
+   292                                                               })
+   293                                                   
+   294                                                   # Sort by age so older trails are drawn first
+   295       300    6941406.0  23138.0      1.1          drawable_elements.sort(key=lambda x: x.get('age', -1), reverse=True)
+   296                                                   
+   297                                                   # Draw all elements with gradient effect
+   298   2159310    3658136.0      1.7      0.6          for element in drawable_elements:
+   299                                                       # gradient_surface = self._get_cached_gradient(
+   300   4318020  545485177.0    126.3     84.2              gradient_surface = self.create_gradient_circle(
+   301   2159010    4625037.0      2.1      0.7                  element['size'], 
+   302   2159010    3486351.0      1.6      0.5                  element['color'], 
+   303   2159010    2453892.0      1.1      0.4                  element['alpha']
+   304                                                       )
+   305   4318020   19599935.0      4.5      3.0              screen.blit(gradient_surface, (
+   306   2159010    4140960.0      1.9      0.6                  element['x'] - element['size'],
+   307   2159010    3579978.0      1.7      0.6                  element['y'] - element['size']
+   308                                                       ))
+
