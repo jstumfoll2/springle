@@ -33,6 +33,9 @@ class SpringleCircle:
         self.colors = SpingleColors()  # Create instance of SpingleColors
         self.mouse_control = MouseControlSystem()
         self.mouse_control.set_screen_center(self.center)
+        
+        # New: Separate list for fading trails
+        self.fading_trails = []
 
         # Initialize gradient cache
         self.gradient_cache = {}
@@ -137,17 +140,13 @@ class SpringleCircle:
         
     def update(self, dt: float, params: SpringleParams) -> None:
         """Update all groups and handle mouse interaction."""
-        # Update fade duration from parameters
         self.fade_duration = params.fade_duration
         need_new_group = False
         
-        # Handle mouse input
+        # Handle mouse input (unchanged)
         if params.mouse_button_pressed and params.mouse_pos:
             if not self.mouse_control.is_dragging:
-                # Start new drag
                 self.mouse_control.start_drag(params.mouse_pos)
-                
-                # Create new group at click position
                 new_group = OrbitGroup(
                     params.min_circles, params.max_circles, 0, params.base_size, 
                     0, 0, 0, 0, True
@@ -155,16 +154,12 @@ class SpringleCircle:
                 new_group.set_group_position(params.mouse_pos, self.center)
                 self.groups.append(new_group)
             else:
-                # Update existing drag
                 self.mouse_control.update_drag(params.mouse_pos, dt)
-                
-                # Update most recent group's position
                 if self.groups:
                     latest_group = self.groups[-1]
                     latest_group.set_group_position(params.mouse_pos, self.center)
         
         elif self.mouse_control.is_dragging:
-            # Handle mouse release
             velocity = self.mouse_control.end_drag()
             if self.groups:
                 latest_group = self.groups[-1]
@@ -172,40 +167,54 @@ class SpringleCircle:
         
         active_groups = 0
         for group in self.groups:
-            if not group.active:
-                continue
-
-            active_groups += 1
-                
+            was_active = group.active
+            
             # Update parameters from current settings
-            group.update_circle_acceleration(params.radial_acceleration, params.angular_acceleration)
-            group.update_circle_size(params.base_size)
+            if group.active:
+                active_groups += 1
+                group.update_circle_acceleration(params.radial_acceleration, params.angular_acceleration)
+                group.update_circle_size(params.base_size)
+                
+                # Update color transition
+                group.color_transition += dt * self.color_transition_speed
+                if group.color_transition >= 1:
+                    group.color_transition = 0
+                    group.palette_index = (group.palette_index + 1) % self.colors.numPatterns()
+                
+                # Update circle positions
+                group.update_circle_positions(dt)
+                
+                # Check if group is still visible
+                group.active = group.is_circle_visible((self.WIDTH, self.HEIGHT))
+                
+                # Update trails for active groups
+                self._update_group_trails(group, dt, params.space_factor)
             
-            # Update color transition
-            group.color_transition += dt * self.color_transition_speed
-            if group.color_transition >= 1:
-                group.color_transition = 0
-                group.palette_index = (group.palette_index + 1) % self.colors.numPatterns()
-            
-            # Update circle positions
-            group.update_circle_positions(dt)
-            
-            # Check if group is still visible
-            group.active = group.is_circle_visible((self.WIDTH, self.HEIGHT))
-            
-            # Update trails
-            self._update_group_trails(group, dt, params.space_factor)
+            # If group just became inactive, move its trails to fading_trails
+            if was_active and not group.active:
+                for circle in group.circles:
+                    if circle['trail']:
+                        self.fading_trails.extend([
+                            (x, y, color, size, age) for x, y, color, size, age in circle['trail']
+                        ])
+                        circle['trail'] = []
         
-        # Update spawn cooldown
+        # Update fading trails
+        updated_fading_trails = []
+        for x, y, color, size, age in self.fading_trails:
+            new_age = age + dt
+            if new_age < self.fade_duration:
+                updated_fading_trails.append((x, y, color, size, new_age))
+        self.fading_trails = updated_fading_trails
+        
+        # Rest of update logic (spawn cooldown, new groups, etc.)
         if self.spawn_cooldown_current >= 0:
             self.spawn_cooldown_current -= dt
             
-        # Check if we should create a new group
         if self.spawn_cooldown_current <= 0 and params.auto_generate:
             need_new_group = True
             self.spawn_cooldown_current = self.spawn_cooldown_start
                 
-        # Spawn new group if needed
         if need_new_group and active_groups < MAX_GROUPS:
             new_group = OrbitGroup(
                     params.min_circles, params.max_circles, 0, params.base_size, 
@@ -213,10 +222,9 @@ class SpringleCircle:
                     params.radial_acceleration, params.angular_acceleration, False
                 )
             self.groups.append(new_group)
+            self.spawn_cooldown_current = self.spawn_cooldown_start
             
-            self.spawn_cooldown_current = self.spawn_cooldown_start # Reset cooldown again just in case
-            
-        # Remove inactive groups to prevent buildup
+        # Only remove completely inactive groups (no trails)
         self.groups = [group for group in self.groups if group.active]
         
     def _update_group_trails(self, group, dt, space_factor):
@@ -254,39 +262,51 @@ class SpringleCircle:
         """Draw all groups and their trails."""
         drawable_elements = []
         
+        # Add fading trails first
+        for x, y, color, size, age in self.fading_trails:
+            fade_progress = age / self.fade_duration
+            eased_fade = 1 - (fade_progress * fade_progress * fade_progress)
+            alpha = int(max(0, max_alpha * eased_fade))  # Allow complete fade to 0
+            
+            if alpha > 0:  # Only add if still visible
+                drawable_elements.append({
+                    'type': 'trail',
+                    'x': x,
+                    'y': y,
+                    'color': color,
+                    'size': size,
+                    'age': age,
+                    'alpha': alpha
+                })
+        
+        # Add active group trails and circles
         for group in self.groups:
             if not group.active:
                 continue
                 
-            # Add trails
             for circle in group.circles:
+                # Add trails
                 for x, y, color, size, age in circle['trail']:
-                    if 0 <= x <= self.WIDTH and 0 <= y <= self.HEIGHT:
-                        # Use smooth easing function for fade
-                        fade_progress = age / self.fade_duration
-                        # Apply cubic easing: f(x) = 1 - x^3
-                        eased_fade = 1 - (fade_progress * fade_progress * fade_progress)
-                        # Add a small base alpha to prevent sudden disappearance
-                        alpha = int(max(10, max_alpha * eased_fade))
-                        
-                        if alpha > 0:  # Changed from 10 to 0 to allow smoother fade-out
-                            drawable_elements.append({
-                                'type': 'trail',
-                                'x': x,
-                                'y': y,
-                                'color': color,
-                                'size': size,
-                                'age': age,
-                                'alpha': alpha
-                            })
-            
-            # Add current circles
-            for circle in group.circles:
-                x, y = group.get_circle_cartesian_pos(circle, self.center)
-                
-                if 0 <= x <= self.WIDTH*1.2 and 0 <= y <= self.HEIGHT*1.2:
-                    color = self.colors.getColor(group.palette_index, circle['color_index'], group.color_transition)
+                    fade_progress = age / self.fade_duration
+                    eased_fade = 1 - (fade_progress * fade_progress * fade_progress)
+                    alpha = int(max(0, max_alpha * eased_fade))  # Match fading trail behavior
                     
+                    if alpha > 0:  # Only add if still visible
+                        drawable_elements.append({
+                            'type': 'trail',
+                            'x': x,
+                            'y': y,
+                            'color': color,
+                            'size': size,
+                            'age': age,
+                            'alpha': alpha
+                        })
+                
+                # Add current circles
+                x, y = group.get_circle_cartesian_pos(circle, self.center)
+                # Use simpler bounds check with 20% padding
+                if (0 <= x <= self.WIDTH * 1.2 and 0 <= y <= self.HEIGHT * 1.2):
+                    color = self.colors.getColor(group.palette_index, circle['color_index'], group.color_transition)
                     size = self.calculate_circle_size(
                         circle['motion'].radius,
                         circle['base_size'],
@@ -303,13 +323,9 @@ class SpringleCircle:
                         'alpha': 255
                     })
         
-        # Sort by age so older trails are drawn first
-        # drawable_elements.sort(key=lambda x: x.get('age', -1), reverse=True)
-        
         # Draw all elements with gradient effect
         for element in drawable_elements:
             gradient_surface = self._get_cached_gradient(
-            # gradient_surface = self.create_gradient_circle(
                 element['size'], 
                 element['color'], 
                 element['alpha']

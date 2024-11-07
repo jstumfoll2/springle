@@ -13,13 +13,13 @@ class BackgroundColorManager:
         button_width = 90
         button_height = 30
         
-        # Create color display button
+        # Create color display button using themed style
         self.color_display = pygame_gui.elements.UIButton(
             relative_rect=pygame.Rect(left_margin, 0, display_width, button_height),
             text='#b996ea',
             manager=manager,
             container=options_panel,
-            object_id='#color_display',
+            object_id='@color_display',
             allow_double_clicks=False
         )
         
@@ -32,10 +32,6 @@ class BackgroundColorManager:
             allow_double_clicks=False
         )
         
-        # Ensure buttons are visible
-        self.color_display.visible = 1
-        self.color_button.visible = 1
-        
         # Set initial colors
         self.update_color_display()
     
@@ -46,32 +42,22 @@ class BackgroundColorManager:
         
         # Calculate text color based on background brightness
         brightness = (self.current_color.r + self.current_color.g + self.current_color.b) / 3
-        text_color = pygame.Color('#FFFFFF') if brightness < 128 else pygame.Color('#000000')
+        text_color = pygame.Color(255, 255, 255) if brightness < 128 else pygame.Color(0, 0, 0)
         
-        # Update all button colors
-        self.color_display.colours = {
-            'normal_bg': self.current_color,
-            'hovered_bg': self.current_color,
-            'active_bg': self.current_color,
-            'normal_border': pygame.Color('#404040'),
-            'hovered_border': pygame.Color('#404040'),
-            'active_border': pygame.Color('#404040'),
+        # Create a theme dictionary with proper Color objects
+        colours = {
+            'normal_bg': pygame.Color(self.current_color),
+            'hovered_bg': pygame.Color(self.current_color),
+            'active_bg': pygame.Color(self.current_color),
+            'selected_bg': pygame.Color(self.current_color),
             'normal_text': text_color,
             'hovered_text': text_color,
             'active_text': text_color,
-            'normal_text_shadow': None,
-            'hovered_text_shadow': None,
-            'active_text_shadow': None,
-            'disabled_bg': pygame.Color('#25252500'),
-            'disabled_text': pygame.Color('#808080'),
-            'disabled_border': pygame.Color('#808080'),
-            'selected_bg': self.current_color,
-            'selected_text': text_color,
-            'selected_border': pygame.Color('#404040'),
-            'disabled_text_shadow': None,
-            'selected_text_shadow': None
+            'selected_text': text_color
         }
         
+        # Update only the dynamic colors
+        self.color_display.colours.update(colours)
         self.color_display.rebuild()
     
     def handle_event(self, event):
