@@ -96,14 +96,9 @@ The system includes several optimizations:
 
 ## Future Enhancements
 
-- [ ] Color control slider
-- [ ] Maximum groups slider
 - [ ] Time-based trail system
 - [ ] Different particle shapes
 - [ ] Background color options
-- [ ] Options menu
-- [ ] Screenshot functionality
-- [ ] Pause button
 - [ ] Android port
 
 ## License
@@ -112,10 +107,9 @@ This project is licensed under the MIT License -- see LICENSE file for more deta
 
 ## Acknowledgments
 
-- Inspired by particle systems and orbital mechanics
+- Inspired by the defunt Android app Springle, which no longer works with the lastest Android API
 - Built with Pygame and Pygame_gui
 - Code assistance and documentation provided by Anthropic's Claude AI
-- Special thanks to contributors and testers
 
 ## Development Notes
 
@@ -126,7 +120,7 @@ Documentation writing
 Bug fixes and improvements
 Best practices implementation
 
-While Claude provided assistance, all code has been validated and tested by human developers.
+While Claude provided assistance, all code has been validated and tested by me.
 
 ## Author
 

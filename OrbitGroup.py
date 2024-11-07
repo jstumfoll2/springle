@@ -114,10 +114,9 @@ class OrbitGroup:
             # self.at_variation = 1
             
         # Use beta distribution for size variation (tends toward middle values)
-        self.size_variation = 1
-        # (random.betavariate(2, 2) * 
-        #                      (self.MAX_SIZE_VARIATION - self.MIN_SIZE_VARIATION) + 
-        #                      self.MIN_SIZE_VARIATION)
+        self.size_variation = (random.betavariate(2, 2) * 
+                                (self.MAX_SIZE_VARIATION - self.MIN_SIZE_VARIATION) + 
+                                self.MIN_SIZE_VARIATION)
 
     def create_circles(self, num_circles, radius, base_size, 
                       radial_velocity=0, angular_velocity=0,
@@ -217,7 +216,7 @@ class OrbitGroup:
         if len(self.circles) == 0:
             return False
             
-        return self.circles[0]['motion'].radius <= visible_radius
+        return math.fabs(self.circles[0]['motion'].radius) <= visible_radius
     
     def get_circle_cartesian_pos(self, circle, screen_center):
         """Get circle position with validation."""

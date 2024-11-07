@@ -21,15 +21,15 @@ class Springle:
         'max_circles': 12,
         'angular_acceleration': 0.5,
         'radial_acceleration': 3,
-        'starting_angular_velocity': 1.5,
-        'starting_radial_velocity': 100,
+        'starting_angular_velocity': 1.0,
+        'starting_radial_velocity': 25,
         'base_size': 20,
-        'fade_duration': 2.0,
+        'fade_duration': 5.0,
         'max_alpha': 200,
         'trail_spacing': 0.5,
         'color_transition_speed': 0.2,
-        'max_groups': 7,
-        'spawn_cooldown': 4.0
+        'max_groups': 10,
+        'spawn_cooldown': 2.5
     }
 
     def __init__(self, width=1080, height=1080):

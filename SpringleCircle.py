@@ -169,10 +169,6 @@ class SpringleCircle:
             if self.groups:
                 latest_group = self.groups[-1]
                 latest_group.handle_mouse_release(params.mouse_pos, velocity, self.center)
-
-        # Update spawn cooldown
-        if self.spawn_cooldown_current > 0:
-            self.spawn_cooldown_current -= dt
         
         active_groups = 0
         for group in self.groups:
@@ -227,6 +223,10 @@ class SpringleCircle:
                         updated_trail.append((px, py, pcolor, psize, new_age))
                 circle['trail'] = updated_trail
         
+        # Update spawn cooldown
+        if self.spawn_cooldown_current >= 0:
+            self.spawn_cooldown_current -= dt
+            
         # Check if we should create a new group
         if self.spawn_cooldown_current <= 0 and params.auto_generate:
             need_new_group = True
@@ -253,9 +253,14 @@ class SpringleCircle:
             for circle in group.circles:
                 for x, y, color, size, age in circle['trail']:
                     if 0 <= x <= self.WIDTH and 0 <= y <= self.HEIGHT:
+                        # Use smooth easing function for fade
                         fade_progress = age / self.fade_duration
-                        alpha = int(max_alpha * (1 - fade_progress))
-                        if alpha > 10:
+                        # Apply cubic easing: f(x) = 1 - x^3
+                        eased_fade = 1 - (fade_progress * fade_progress * fade_progress)
+                        # Add a small base alpha to prevent sudden disappearance
+                        alpha = int(max(10, max_alpha * eased_fade))
+                        
+                        if alpha > 0:  # Changed from 10 to 0 to allow smoother fade-out
                             drawable_elements.append({
                                 'type': 'trail',
                                 'x': x,
