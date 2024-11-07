@@ -105,7 +105,7 @@ The system includes several optimizations:
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License -- see LICENSE file for more detail.
 
 ## Acknowledgments
 
