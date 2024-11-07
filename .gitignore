@@ -1,3 +1,4 @@
 .VSCodeCounter/*
 profile_results.prof
 line_profile_results.txt
+__pycache__/*
