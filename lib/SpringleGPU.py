@@ -162,7 +162,7 @@ class GPUAcceleratedSpingleCircle(SpringleCircle):
         """Adjusted size calculation for GPU rendering."""
         size_factor = math.log(radius + 1) / 5 if radius > 0 else 1
         # Adjust base size for GPU rendering
-        adjusted_base_size = base_size * 0.5  # Adjust this factor if needed
+        adjusted_base_size = base_size * 1.0  # Adjust this factor if needed
         return adjusted_base_size * size_variation * size_factor
         
     def draw(self, screen, max_alpha):

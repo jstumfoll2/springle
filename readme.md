@@ -35,7 +35,7 @@ cd springle
 
 2. Install required packages:
 ```bash
-pip install pygame pygame_gui
+pip install pygame-ce pygame_gui
 ```
 
 3. Run the application:
