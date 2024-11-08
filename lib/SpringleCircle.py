@@ -306,38 +306,21 @@ class SpringleCircle:
             
             # If group just became inactive, move its trails to fading_trails
             if was_active and not group.active:
-                group_trails = []
                 for circle in group.circles:
                     if circle['trail']:
-                        # Store circle index with trail points to maintain identity
-                        group_trails.extend([
-                            (circle_idx, x, y, color, size, age)
-                            for circle_idx, (x, y, color, size, age, _) 
-                            in enumerate(circle['trail'])
+                        # The trail points now have 6 values (x, y, color, size, age, creation_time)
+                        self.fading_trails.extend([
+                            (group.creation_time, (x, y, color, size, age))  # Extract first 5 values, store with group time
+                            for x, y, color, size, age, _ in circle['trail']  # Unpack all 6 values
                         ])
                         circle['trail'] = []
-                
-                if group_trails:  # Only add if there are trails
-                    self.fading_trails.append({
-                        'creation_time': group.creation_time,
-                        'palette_index': group.palette_index,
-                        'color_transition': group.color_transition,
-                        'trails': group_trails
-                    })
         
-        # Update fading trails with group context
+        # Update fading trails
         updated_fading_trails = []
-        for group_data in self.fading_trails:
-            updated_trails = []
-            for circle_idx, x, y, color, size, age in group_data['trails']:
-                new_age = age + dt
-                if new_age < self.fade_duration:
-                    updated_trails.append((circle_idx, x, y, color, size, new_age))
-            
-            if updated_trails:  # Only keep groups with remaining trails
-                group_data['trails'] = updated_trails
-                updated_fading_trails.append(group_data)
-                
+        for creation_time, (x, y, color, size, age) in self.fading_trails:
+            new_age = age + dt
+            if new_age < self.fade_duration:
+                updated_fading_trails.append((creation_time, (x, y, color, size, new_age)))
         self.fading_trails = updated_fading_trails
         
         # Rest of update logic (spawn cooldown, new groups, etc.)
@@ -399,29 +382,23 @@ class SpringleCircle:
         # Dictionary to collect all drawable elements, keyed by creation time
         group_elements = {}
         
-        # Add fading group trails
-        for group_data in self.fading_trails:
-            creation_time = group_data['creation_time']
+        # Add fading trails
+        for creation_time, (x, y, color, size, age) in self.fading_trails:
+            fade_progress = age / self.fade_duration
+            eased_fade = 1 - (fade_progress * fade_progress * fade_progress)
+            alpha = int(max(0, max_alpha * eased_fade))
             
-            if creation_time not in group_elements:
-                group_elements[creation_time] = []
-                
-            # Add all trails for this fading group
-            for circle_idx, x, y, color, size, age in group_data['trails']:
-                fade_progress = age / self.fade_duration
-                eased_fade = 1 - (fade_progress * fade_progress * fade_progress)
-                alpha = int(max(0, max_alpha * eased_fade))
-                
-                if alpha > 0:
-                    group_elements[creation_time].append({
-                        'type': 'trail',
-                        'x': x,
-                        'y': y,
-                        'color': color,
-                        'size': size,
-                        'alpha': alpha,
-                        'circle_idx': circle_idx  # Keep circle index for potential use
-                    })
+            if alpha > 0:
+                if creation_time not in group_elements:
+                    group_elements[creation_time] = []
+                group_elements[creation_time].append({
+                    'type': 'trail',
+                    'x': x,
+                    'y': y,
+                    'color': color,
+                    'size': size,
+                    'alpha': alpha
+                })
         
         # Add active groups' elements
         for group in self.groups:
@@ -446,8 +423,7 @@ class SpringleCircle:
                             'y': y,
                             'color': color,
                             'size': size,
-                            'alpha': alpha,
-                            'circle_idx': circle_idx
+                            'alpha': alpha
                         })
                 
                 # Add current circles
@@ -470,8 +446,7 @@ class SpringleCircle:
                         'y': y,
                         'color': color,
                         'size': size,
-                        'alpha': 255,
-                        'circle_idx': circle_idx
+                        'alpha': 255
                     })
         
         # Draw all elements in order of creation time

@@ -18,4 +18,11 @@
 
 different shapes
 
+GPU rendering
+
+Performance improvements
+
 make it an android app
+
+
+from lib.SpringleCircle import SpringleCircle

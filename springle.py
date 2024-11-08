@@ -10,9 +10,11 @@ from datetime import datetime
 import os
 
 from lib.BackgroundColorManager import BackgroundColorManager
-from lib.SpringleCircle import SpringleCircle
+# from lib.SpringleGPU import  GPUAcceleratedSpingleCircle as SpringleCircle
+from lib.SpringleCircle import  SpringleCircle
 from lib.FPSCounter import FPSCounter
 from lib.SpringleParams import SpringleParams
+from lib.OrbitGroup import OrbitGroup
 
 class Springle:
     # Default parameter values
@@ -48,11 +50,13 @@ class Springle:
         pygame.init()
         
         # Set up display
-        self.screen = pygame.display.set_mode((width, height))
+        self.screen = pygame.display.set_mode((width, height), pygame.SCALED | pygame.RESIZABLE)
         pygame.display.set_caption("Springle")
         
         # Initialize UI
-        self.manager = pygame_gui.UIManager((width, height), 'data/themes/theme.json')
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        theme_path = os.path.join(self.base_dir, 'data', 'themes', 'theme.json')
+        self.manager = pygame_gui.UIManager((width, height), theme_path)
         
         # Create options panel (hidden initially)
         self.create_options_panel()
