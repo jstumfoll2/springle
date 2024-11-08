@@ -2,4 +2,6 @@
 profile_results.prof
 line_profile_results.txt
 __pycache__/*
+lib/__pycache__/*
 /*.png
+data/screenshots/*

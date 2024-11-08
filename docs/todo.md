@@ -13,10 +13,8 @@
 ~~Move controls into an options menu~~
 ~~change background color~~
 ~~delete groups if exceeding max groups when adding new mouse groups~~
-
-Fix issue on the side of the screen where the cirlces aren't plotted properly
-
-make the circle trail time dependent rather than spacially connected
+~~Fix issue on the side of the screen where the cirlces aren't plotted properly~~
+~~make the circle trail time dependent rather than spacially connected~~
 
 different shapes
 

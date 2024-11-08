@@ -2,7 +2,8 @@
 
 Springle is an interactive particle animation system that creates mesmerizing visual effects through orbital motion and color transitions. Users can create and manipulate groups of particles that leave colorful trails as they move across the screen.
 
-<img src="docs/images/springle_normal.png" width="800" alt="Springle Demo Screenshot">
+Main Window:
+<img src="docs/images/springle_main.png" width="800" alt="Springle Demo Screenshot">
 
 Options Menu:
 <img src="docs/images/springle_options.png" width="800" alt="Springle Demo Screenshot">
@@ -115,10 +116,10 @@ This project is licensed under the MIT License -- see LICENSE file for more deta
 
 This project was developed with assistance from Claude, an AI assistant by Anthropic. Claude helped with:
 
-Code optimization suggestions
-Documentation writing
-Bug fixes and improvements
-Best practices implementation
+- Code optimization suggestions
+- Documentation writing
+- Bug fixes and improvements
+- Best practices implementation
 
 While Claude provided assistance, all code has been validated and tested by me.
 

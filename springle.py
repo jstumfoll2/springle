@@ -9,11 +9,10 @@ import pygame_gui
 from datetime import datetime
 import os
 
-from OrbitGroup import OrbitGroup
-from SpringleCircle import SpringleCircle
-from FPSCounter import FPSCounter
-from SpringleParams import SpringleParams
-from BackgroundColorManager import BackgroundColorManager  # Add this with your other imports
+from lib.BackgroundColorManager import BackgroundColorManager
+from lib.SpringleCircle import SpringleCircle
+from lib.FPSCounter import FPSCounter
+from lib.SpringleParams import SpringleParams
 
 class Springle:
     # Default parameter values
@@ -517,7 +516,16 @@ class Springle:
         """Take a screenshot of the current screen."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"springle_{timestamp}.png"
-        filepath = os.path.join(".", filename)
+        
+        # Create screenshots directory if it doesn't exist
+        screenshot_dir = os.path.join(".", "data", "screenshots")
+        try:
+            os.makedirs(screenshot_dir, exist_ok=True)
+        except OSError as e:
+            print(f"Error creating screenshots directory: {e}")
+            return
+        
+        filepath = os.path.join(screenshot_dir, filename)
         pygame.image.save(self.screen, filepath)
         print(f"Screenshot saved: {filepath}")
     

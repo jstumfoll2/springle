@@ -1,7 +1,8 @@
 import random
 import math
-from SpingleColors import SpingleColors
-from PolarMotion import PolarMotion
+
+from lib.SpingleColors import SpingleColors
+from lib.PolarMotion import PolarMotion
 
 class OrbitGroup:
     """

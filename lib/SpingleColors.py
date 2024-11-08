@@ -1,5 +1,4 @@
-from typing import Tuple, List, Union
-import math
+from typing import Tuple, List
 
 class SpingleColors:
     """
