@@ -10,6 +10,8 @@ from lib.SpringleWidget import SpringleWidget
 from lib.TextOverlay import TextOverlay
 from lib.OptionsPanel import OptionsPanel
 
+from lib.SpringleProfiler import initialize_profiler
+
 class SpringleApp(MDApp):
     """Main application class"""
     def __init__(self, **kwargs):
@@ -22,13 +24,11 @@ class SpringleApp(MDApp):
         # Create root layout
         root = FloatLayout()
         
-        # Create and add springle widget
-        self.springle_widget = SpringleWidget()
-        root.add_widget(self.springle_widget)
+        # Initialize profiler
+        self.profiler = initialize_profiler(self)
         
         # Create text overlay as a separate top-level widget
         self.text_overlay = TextOverlay()
-        root.add_widget(self.text_overlay)
         
         # Create navigation drawer
         self.nav_drawer = MDNavigationDrawer(
@@ -39,10 +39,17 @@ class SpringleApp(MDApp):
             type="modal"
         )
         
+        # Create and add springle widget
+        self.springle_widget = SpringleWidget()
+        
         # Add options panel to drawer
         self.options_panel = OptionsPanel(self.springle_widget)
         self.nav_drawer.add_widget(self.options_panel)
+        
+        
+        root.add_widget(self.text_overlay)
         root.add_widget(self.nav_drawer)
+        root.add_widget(self.springle_widget)
         
         # Set initial window size (width, height)
         Window.bind(on_resize=self._on_resize)
@@ -56,7 +63,8 @@ class SpringleApp(MDApp):
 
         # Manually trigger window resize handling to initialize the circle system correctly
         self.springle_widget._on_resize(None, *Window.size)  # Call the resize handler manually
-    
+        
+        self.profiler = initialize_profiler(self)
     
     def on_pause(self):
         """Handle app pause"""

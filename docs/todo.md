@@ -24,5 +24,26 @@ Performance improvements
 
 make it an android app
 
+Create gif animation
 
-from lib.SpringleCircle import SpringleCircle
+Fix bugs with the Kivy version
+ -- consistantly use KivyMD instead of Kivy
+
+Performance tester for Kivy app, why is it so slow???
+
+
+ 
+# TODO List:
+# 2. Remaining features to implement:
+#    - Mouse position in bottom right corner
+#    - Background color selector in options menu
+# 3. Convert all Kivy widgets to KivyMD counterparts
+
+
+# 4. Figure out why it breaks with base_size > 100
+# 5. Figure out why some groups stall at a certain radius - maybe issue with window resizing not working properly?
+# 6. Figure out why initial spawn is not at radius = 0
+# 7. Fix trail spacing so it is tighter
+# 8. Figure out why trail spacing has gaps
+
+coordinate color themes with background and circle colors

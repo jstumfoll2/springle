@@ -16,9 +16,9 @@ class OrbitGroup:
     MAX_VELOCITY_VARIATION = 10.0
     MIN_ACCELERATION_VARIATION = -1.0
     MAX_ACCELERATION_VARIATION = 1.0
-    VISIBILITY_MARGIN = 1.3  # How far off screen before marking as inactive
+    VISIBILITY_MARGIN = 1.1  # How far off screen before marking as inactive
     
-    def __init__(self, min_circles, max_circles, radius, base_size, 
+    def __init__(self, trail_store, group_id, min_circles, max_circles, radius, base_size, 
                  radial_velocity, angular_velocity,
                  radial_acceleration, angular_acceleration,  
                  is_mouse_group=False):
@@ -26,6 +26,8 @@ class OrbitGroup:
         Initialize orbit group with parameter validation.
         
         Args:
+            trail_store: Centralized trail storage system
+            group_id: Unique identifier for this group
             min_circles (int): Minimum number of circles
             max_circles (int): Maximum number of circles
             radius (float): Initial radius from center
@@ -36,6 +38,10 @@ class OrbitGroup:
             angular_acceleration (float): Initial angular acceleration
             is_mouse_group (bool): Whether this group is controlled by mouse
         """
+        # Store TrailStore reference and group ID
+        self.trail_store = trail_store
+        self.group_id = group_id
+        
         # Validate parameters
         self.validate_parameters(min_circles, max_circles, radius, base_size)
         
@@ -45,6 +51,9 @@ class OrbitGroup:
         
         self.radius = radius
         self.active = True
+        self.size = 1
+        self.x = 1
+        self.y = 1
         
         # Initialize colors
         self.colors = SpingleColors()
@@ -52,9 +61,15 @@ class OrbitGroup:
         self.color_transition = 0
         
         self.creation_time = 0
+        self._last_trail_time = 0
         
         # Generate variations with improved distribution
         self.generate_variations()
+        
+        self.radial_acceleration = radial_acceleration
+        self.angular_acceleration = angular_acceleration
+        self.base_size = base_size
+        self.should_check_visibility = True
         
         # Create circles
         num_circles = self.get_validated_circle_count(min_circles, max_circles)
@@ -143,36 +158,23 @@ class OrbitGroup:
                                      angular_acceleration * self.at_variation
             )
             
-            # Create circle with validated parameters
+            # Simplified circle state (removed trail array)
             circle = {
                 'motion': motion,
-                'color_index': 0,
-                'trail': [],
+                'color_index': i % self.colors.COLORS_PER_PALETTE,
                 'time_offset': 0 if self.is_mouse_group else self.time_offset,
-                'last_trail_pos': None,
                 'size_variation': self.size_variation,
                 'base_size': base_size,
                 'active': True
             }
             self.circles.append(circle)
     
-    def cleanup_inactive_circles(self, screen_size):
-        """Remove circles that are far outside the visible area."""
-        screen_diagonal = math.sqrt(screen_size[0]**2 + screen_size[1]**2)
-        visibility_threshold = screen_diagonal * self.VISIBILITY_MARGIN
-        
-        # Filter out inactive circles
-        active_circles = []
-        for circle in self.circles:
-            if math.fabs(circle['motion'].radius) <= visibility_threshold:
-                active_circles.append(circle)
-            else:
-                # Clear memory used by trail
-                circle['trail'].clear()
-        
-        self.circles = active_circles
-        # Update group active status
-        self.active = len(self.circles) > 0
+    def calculate_circle_size(self, circle):
+        """Calculate current circle size with all factors applied."""
+        radius = circle['motion'].radius
+        size_factor = math.log(radius + 1) / 5 if radius > 0 else 1
+        self.size = circle['base_size'] * circle['size_variation'] * size_factor
+        return self.size
     
     def update_circle_size(self, new_size):
         """Update circle sizes with validation."""
@@ -225,32 +227,68 @@ class OrbitGroup:
         """Get circle position with validation."""
         if not circle or not screen_center:
             return (0, 0)
-            
-        return circle['motion'].to_cartesian(
+        
+        self.x, self.y = circle['motion'].to_cartesian(
             origin_x=screen_center[0],
             origin_y=screen_center[1]
         )
+        return self.x, self.y 
         
     def set_group_position(self, pos, screen_center):
-        """Set group position with proper validation and calculations."""
+        """Set position for all circles in the group."""
         if not pos or not screen_center:
             return
             
-        # Calculate relative position from center
+        # Calculate base position
         rel_x = pos[0] - screen_center[0]
         rel_y = pos[1] - screen_center[1]
-        
-        # Calculate base radius and angle
         base_radius = math.sqrt(rel_x**2 + rel_y**2)
         base_angle = math.atan2(rel_y, rel_x)
         
-        # Update each circle's position
+        # Update circle positions
         angle_step = 2 * math.pi / len(self.circles)
         for i, circle in enumerate(self.circles):
             circle['motion'].radius = base_radius
             circle['motion'].theta = base_angle + (angle_step * i)
-            # Reset velocities and accelerations
+            # Reset motion parameters
             circle['motion'].radial_velocity = 0
             circle['motion'].angular_velocity = 0
             circle['motion'].radial_acceleration = 0
             circle['motion'].angular_acceleration = 0
+            
+    def group_update(self, dt, current_time, space_factor, screen_center):
+        """Optimized circle updating."""
+        # Pre-calculate common values
+        screen_center = self.center
+        should_add_trail = current_time - self._last_trail_time >= 0.01 * space_factor # Limit trail frequency
+        
+        # Batch update circles
+        current_size = self.calculate_circle_size(self.circles[0])
+        color = self.colors.getColor(
+            self.palette_index,
+            self.circles[0]['color_index'],
+            self.color_transition
+        )
+        texture = None # self.get_texture()
+        for circle in self.circles:
+            # Update motion
+            circle['motion'].update(dt)
+            
+            # Update time offset for non-mouse groups
+            if not self.is_mouse_group:
+                circle['time_offset'] += dt
+            
+            # Only add trail points periodically
+            if self.is_circle_visible and should_add_trail:
+                x, y = self.get_circle_cartesian_pos(circle, screen_center)
+                
+                self.trail_store.add_point(
+                    x=x,
+                    y=y,
+                    color=color,
+                    size=current_size,
+                    group_id=self.group_id,
+                    creation_time=current_time,
+                    texture=texture
+                )
+            self._last_trail_time  = current_time
